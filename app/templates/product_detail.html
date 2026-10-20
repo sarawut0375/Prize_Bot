@@ -5,7 +5,7 @@
 <h1>{{ product.name }}</h1>
 <p class="keyword">คำค้นหา: "{{ product.keyword }}" | แหล่ง: {{ product.sources }}</p>
 {% if product.target_price %}<p>ราคาเป้าหมาย: {{ "%.0f"|format(product.target_price) }} บาท</p>{% endif %}
-<p class="interval-note">🔄 เช็คราคาอัตโนมัติทุก {{ scrape_interval_minutes }} นาที</p>
+<p class="interval-note">🔄 เช็คราคาอัตโนมัติทุก {{ scrape_interval_min }}-{{ scrape_interval_max }} นาที (สุ่มรอบเวลา)</p>
 
 <h2>สถานะการเชื่อมต่อแต่ละแหล่ง</h2>
 <table class="price-table">

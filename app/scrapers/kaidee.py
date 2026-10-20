@@ -10,6 +10,7 @@ If this stops returning results, open the search page in a browser,
 view source, and adjust `_parse_next_data` / `_parse_html` accordingly.
 """
 import json
+import logging
 import re
 
 from bs4 import BeautifulSoup
@@ -18,6 +19,8 @@ from app.config import settings
 from app.scrapers.base import BaseScraper, ScrapedListing, get_session
 
 SEARCH_URL = "https://www.kaidee.com/search"
+
+logger = logging.getLogger("price_bot.scrapers.kaidee")
 
 
 class KaideeScraper(BaseScraper):
@@ -36,7 +39,16 @@ class KaideeScraper(BaseScraper):
         listings = self._parse_next_data(soup, limit)
         if listings:
             return listings
-        return self._parse_html(soup, limit)
+        listings = self._parse_html(soup, limit)
+        if not listings:
+            has_next_data = soup.find("script", id="__NEXT_DATA__") is not None
+            logger.info(
+                "Kaidee search for '%s' found 0 items (HTTP %s, page length %s chars, "
+                "__NEXT_DATA__ present: %s). Kaidee likely changed their page structure "
+                "or this page needs JavaScript to load results.",
+                keyword, resp.status_code, len(resp.text), has_next_data,
+            )
+        return listings
 
     def _parse_next_data(self, soup: BeautifulSoup, limit: int) -> list[ScrapedListing]:
         tag = soup.find("script", id="__NEXT_DATA__")

@@ -7,6 +7,7 @@ LIMITATIONS: Lazada may also rate-limit or change this response shape.
 See shopee.py's docstring for the same caveats - this is best-effort.
 """
 import json
+import logging
 import re
 
 from bs4 import BeautifulSoup
@@ -15,6 +16,8 @@ from app.config import settings
 from app.scrapers.base import BaseScraper, ScrapedListing, get_session
 
 SEARCH_URL = "https://www.lazada.co.th/catalog/"
+
+logger = logging.getLogger("price_bot.scrapers.lazada")
 
 
 class LazadaScraper(BaseScraper):
@@ -28,6 +31,9 @@ class LazadaScraper(BaseScraper):
             timeout=settings.REQUEST_TIMEOUT_SECONDS,
         )
         if resp.status_code != 200:
+            logger.warning(
+                "Lazada search for '%s' got HTTP %s: %s", keyword, resp.status_code, resp.text[:300]
+            )
             return []
 
         try:
@@ -37,6 +43,12 @@ class LazadaScraper(BaseScraper):
             # try to dig the embedded `window.pageData` JSON out of it.
             data = self._extract_page_data(resp.text)
             if data is None:
+                logger.warning(
+                    "Lazada search for '%s': response wasn't JSON and no "
+                    "window.pageData found in the HTML (page length %s chars). "
+                    "Lazada likely changed their page/response format.",
+                    keyword, len(resp.text),
+                )
                 return []
 
         items = (
@@ -44,6 +56,11 @@ class LazadaScraper(BaseScraper):
             or data.get("mods", {}).get("listItems")
             or []
         )
+        if not items:
+            logger.info(
+                "Lazada search for '%s' parsed OK but found 0 items. "
+                "Top-level JSON keys: %s", keyword, list(data.keys()),
+            )
 
         results: list[ScrapedListing] = []
         for item in items[:limit]:

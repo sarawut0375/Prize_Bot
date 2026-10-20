@@ -1,8 +1,12 @@
 """
-Background scheduler: every SCRAPE_INTERVAL_MINUTES, re-check prices for
-every active Product.
+Background scheduler: re-check prices for every active Product on a random
+interval between SCRAPE_INTERVAL_MIN_MINUTES and SCRAPE_INTERVAL_MAX_MINUTES
+(instead of a fixed interval), so traffic looks less bot-like to sites with
+anti-scraping protection.
 """
 import logging
+import random
+from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlmodel import Session, select
@@ -15,6 +19,7 @@ from app.price_checker import check_product
 logger = logging.getLogger("price_bot.scheduler")
 
 scheduler = BackgroundScheduler()
+JOB_ID = "price_check_job"
 
 
 def check_all_products() -> None:
@@ -29,17 +34,32 @@ def check_all_products() -> None:
     logger.info("Scheduled price check complete.")
 
 
+def _run_and_reschedule() -> None:
+    check_all_products()
+    _schedule_next_run()
+
+
+def _schedule_next_run() -> None:
+    low = min(settings.SCRAPE_INTERVAL_MIN_MINUTES, settings.SCRAPE_INTERVAL_MAX_MINUTES)
+    high = max(settings.SCRAPE_INTERVAL_MIN_MINUTES, settings.SCRAPE_INTERVAL_MAX_MINUTES)
+    delay_minutes = random.randint(low, high)
+    run_at = datetime.now() + timedelta(minutes=delay_minutes)
+
+    scheduler.add_job(
+        _run_and_reschedule,
+        trigger="date",
+        run_date=run_at,
+        id=JOB_ID,
+        replace_existing=True,
+    )
+    logger.info(
+        "Next price check scheduled in %s minute(s), at %s.",
+        delay_minutes, run_at.strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
 def start_scheduler() -> None:
     if scheduler.running:
         return
-    scheduler.add_job(
-        check_all_products,
-        trigger="interval",
-        minutes=settings.SCRAPE_INTERVAL_MINUTES,
-        id="price_check_job",
-    )
     scheduler.start()
-    logger.info(
-        "Scheduler started: checking prices every %s minute(s).",
-        settings.SCRAPE_INTERVAL_MINUTES,
-    )
+    _schedule_next_run()

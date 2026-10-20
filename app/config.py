@@ -19,8 +19,11 @@ class Settings:
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
 
     # --- Scheduler ---
-    # How often (in minutes) the bot re-checks prices for every tracked product.
-    SCRAPE_INTERVAL_MINUTES: int = int(os.getenv("SCRAPE_INTERVAL_MINUTES", "5"))
+    # The bot re-checks prices on a random interval between these two values
+    # (in minutes) each cycle, instead of a fixed interval - this looks less
+    # like a bot to sites with anti-scraping protection (Shopee/Lazada).
+    SCRAPE_INTERVAL_MIN_MINUTES: int = int(os.getenv("SCRAPE_INTERVAL_MIN_MINUTES", "10"))
+    SCRAPE_INTERVAL_MAX_MINUTES: int = int(os.getenv("SCRAPE_INTERVAL_MAX_MINUTES", "30"))
 
     # --- Scraper behaviour ---
     REQUEST_TIMEOUT_SECONDS: int = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "15"))

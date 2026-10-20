@@ -11,10 +11,15 @@ a valid `csrftoken`/session cookie. If that happens:
      own PC or a Raspberry Pi) rather than a cloud server.
   3. As a fallback, add prices for this product manually from the web UI.
 """
+import logging
+from urllib.parse import quote
+
 from app.config import settings
 from app.scrapers.base import BaseScraper, ScrapedListing, get_session
 
 SEARCH_API = "https://shopee.co.th/api/v4/search/search_items"
+
+logger = logging.getLogger("price_bot.scrapers.shopee")
 
 
 class ShopeeScraper(BaseScraper):
@@ -26,7 +31,10 @@ class ShopeeScraper(BaseScraper):
             {
                 "Accept": "application/json",
                 "X-API-SOURCE": "pc",
-                "Referer": f"https://shopee.co.th/search?keyword={keyword}",
+                # HTTP headers must be Latin-1; a raw Thai keyword here raises
+                # UnicodeEncodeError inside requests. URL-encode it instead -
+                # this is exactly what a real browser sends.
+                "Referer": f"https://shopee.co.th/search?keyword={quote(keyword)}",
             }
         )
         params = {
@@ -41,13 +49,24 @@ class ShopeeScraper(BaseScraper):
         }
         resp = session.get(SEARCH_API, params=params, timeout=settings.REQUEST_TIMEOUT_SECONDS)
         if resp.status_code != 200:
+            logger.warning(
+                "Shopee search for '%s' got HTTP %s: %s", keyword, resp.status_code, resp.text[:300]
+            )
             return []
         try:
             data = resp.json()
         except ValueError:
+            logger.warning("Shopee search for '%s' returned non-JSON body: %s", keyword, resp.text[:300])
             return []
 
         items = data.get("items") or []
+        if not items:
+            # error_msg / reason here almost always explains *why* zero results came
+            # back (e.g. anti-bot challenge) even though the HTTP call "succeeded".
+            logger.info(
+                "Shopee search for '%s' returned 0 items. Raw response keys: %s, error: %s",
+                keyword, list(data.keys()), data.get("error_msg") or data.get("error"),
+            )
         results: list[ScrapedListing] = []
         for entry in items[:limit]:
             item = entry.get("item_basic") or entry.get("item") or {}

@@ -78,7 +78,8 @@ def index(request: Request):
             "products": products,
             "comparisons": comparisons,
             "source_status": source_status,
-            "scrape_interval_minutes": settings.SCRAPE_INTERVAL_MINUTES,
+            "scrape_interval_min": settings.SCRAPE_INTERVAL_MIN_MINUTES,
+            "scrape_interval_max": settings.SCRAPE_INTERVAL_MAX_MINUTES,
         },
     )
 
@@ -136,7 +137,8 @@ def product_detail(request: Request, product_id: int):
             "product": product,
             "by_source": dict(by_source),
             "source_status": status,
-            "scrape_interval_minutes": settings.SCRAPE_INTERVAL_MINUTES,
+            "scrape_interval_min": settings.SCRAPE_INTERVAL_MIN_MINUTES,
+            "scrape_interval_max": settings.SCRAPE_INTERVAL_MAX_MINUTES,
         },
     )
 

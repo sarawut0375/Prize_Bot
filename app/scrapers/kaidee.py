@@ -42,11 +42,13 @@ class KaideeScraper(BaseScraper):
         listings = self._parse_html(soup, limit)
         if not listings:
             has_next_data = soup.find("script", id="__NEXT_DATA__") is not None
+            snippet = " ".join(resp.text.split())[:400]
             logger.info(
                 "Kaidee search for '%s' found 0 items (HTTP %s, page length %s chars, "
-                "__NEXT_DATA__ present: %s). Kaidee likely changed their page structure "
-                "or this page needs JavaScript to load results.",
-                keyword, resp.status_code, len(resp.text), has_next_data,
+                "__NEXT_DATA__ present: %s). Kaidee likely changed their page structure, "
+                "blocked the request, or this page needs JavaScript to load results. "
+                "Body snippet: %s",
+                keyword, resp.status_code, len(resp.text), has_next_data, snippet,
             )
         return listings
 

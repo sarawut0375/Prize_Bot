@@ -43,11 +43,13 @@ class LazadaScraper(BaseScraper):
             # try to dig the embedded `window.pageData` JSON out of it.
             data = self._extract_page_data(resp.text)
             if data is None:
+                snippet = " ".join(resp.text.split())[:400]
                 logger.warning(
                     "Lazada search for '%s': response wasn't JSON and no "
                     "window.pageData found in the HTML (page length %s chars). "
-                    "Lazada likely changed their page/response format.",
-                    keyword, len(resp.text),
+                    "Lazada likely changed their page/response format, or this "
+                    "is a bot-check/redirect page. Body snippet: %s",
+                    keyword, len(resp.text), snippet,
                 )
                 return []
 

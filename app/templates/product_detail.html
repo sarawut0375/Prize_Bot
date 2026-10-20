@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} - Price Bot{% endblock %}
+{% block content %}
+<a href="/">← กลับหน้ารายการ</a>
+<h1>{{ product.name }}</h1>
+<p class="keyword">คำค้นหา: "{{ product.keyword }}" | แหล่ง: {{ product.sources }}</p>
+{% if product.target_price %}<p>ราคาเป้าหมาย: {{ "%.0f"|format(product.target_price) }} บาท</p>{% endif %}
+
+<div class="actions">
+    <form method="post" action="/products/{{ product.id }}/refresh" class="inline-form">
+        <button type="submit" class="btn btn-primary">🔄 รีเฟรชราคาตอนนี้</button>
+    </form>
+    <form method="post" action="/products/{{ product.id }}/delete" class="inline-form"
+          onsubmit="return confirm('ลบสินค้านี้และประวัติราคาทั้งหมด?');">
+        <button type="submit" class="btn btn-danger">🗑 ลบสินค้านี้</button>
+    </form>
+</div>
+
+<h2>เพิ่มราคาด้วยตนเอง (เช่น จาก Facebook Marketplace)</h2>
+<form method="post" action="/products/{{ product.id }}/manual-price" class="form form-compact">
+    <input type="text" name="title" placeholder="ชื่อ/รายละเอียดสินค้าที่เจอ" required>
+    <input type="number" step="0.01" name="price" placeholder="ราคา (บาท)" required>
+    <input type="url" name="url" placeholder="ลิงก์ (ไม่บังคับ)">
+    <input type="text" name="seller" placeholder="ผู้ขาย (ไม่บังคับ)">
+    <select name="source">
+        <option value="facebook" selected>facebook</option>
+        <option value="shopee">shopee</option>
+        <option value="lazada">lazada</option>
+        <option value="kaidee">kaidee</option>
+        <option value="manual">manual</option>
+    </select>
+    <button type="submit" class="btn btn-small">บันทึกราคา</button>
+</form>
+
+<h2>ประวัติราคาตามแหล่ง</h2>
+{% for source, records in by_source.items() %}
+<h3>{{ source }}</h3>
+<table class="price-table">
+    <thead><tr><th>เวลา</th><th>ราคา</th><th>สินค้า</th><th>ผู้ขาย</th></tr></thead>
+    <tbody>
+    {% for r in records %}
+        <tr>
+            <td>{{ r.scraped_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td class="price">{{ "%.0f"|format(r.price) }} {{ r.currency }}</td>
+            <td>{% if r.url %}<a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title[:60] }}</a>{% else %}{{ r.title[:60] }}{% endif %}</td>
+            <td>{{ r.seller or "-" }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty">ยังไม่มีข้อมูลราคาเลย — กด "รีเฟรชราคาตอนนี้" ด้านบน</p>
+{% endfor %}
+{% endblock %}

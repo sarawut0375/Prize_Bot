@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}เพิ่มสินค้า - Price Bot{% endblock %}
+{% block content %}
+<h1>เพิ่มสินค้าที่ต้องการติดตาม</h1>
+
+<form method="post" action="/products" class="form">
+    <label>
+        ชื่อสินค้า (แสดงผล)
+        <input type="text" name="name" placeholder="เช่น iPhone 15 Pro Max 256GB" required>
+    </label>
+
+    <label>
+        คำค้นหา (ใช้ค้นหาในแต่ละเว็บ)
+        <input type="text" name="keyword" placeholder="เช่น iphone 15 pro max 256" required>
+    </label>
+
+    <fieldset>
+        <legend>แหล่งที่ต้องการติดตาม</legend>
+        {% for source in all_sources %}
+        <label class="checkbox">
+            <input type="checkbox" name="sources" value="{{ source }}" {% if source != 'facebook' %}checked{% endif %}>
+            {{ source }}
+            {% if source == 'facebook' %}<small>(ใส่ราคาเองในหน้ารายละเอียด — ดูเหตุผลใน README)</small>{% endif %}
+        </label>
+        {% endfor %}
+    </fieldset>
+
+    <label>
+        ราคาเป้าหมาย (ไม่บังคับ) — แจ้งเตือนทันทีที่ราคาถึงหรือต่ำกว่านี้
+        <input type="number" step="0.01" name="target_price" placeholder="เช่น 25000">
+    </label>
+
+    <label class="checkbox">
+        <input type="checkbox" name="notify_on_any_change" value="true" checked>
+        แจ้งเตือนทุกครั้งที่ราคาเปลี่ยน (ไม่ใช่แค่ตอนถึงราคาเป้าหมาย)
+    </label>
+
+    <button type="submit" class="btn btn-primary">บันทึกและเริ่มติดตาม</button>
+</form>
+{% endblock %}

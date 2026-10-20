@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}รายการสินค้า - Price Bot{% endblock %}
+{% block content %}
+<h1>สินค้าที่ติดตามอยู่</h1>
+
+{% if not products %}
+    <p class="empty">ยังไม่มีสินค้าที่ติดตาม — <a href="/products/new">เพิ่มรายการแรก</a></p>
+{% endif %}
+
+<div class="product-grid">
+{% for product in products %}
+    <div class="card">
+        <div class="card-header">
+            <a href="/products/{{ product.id }}"><h2>{{ product.name }}</h2></a>
+            {% if product.target_price %}
+                <span class="badge">เป้าหมาย {{ "%.0f"|format(product.target_price) }} บาท</span>
+            {% endif %}
+        </div>
+        <p class="keyword">คำค้นหา: "{{ product.keyword }}"</p>
+
+        {% set comp = comparisons.get(product.id, {}) %}
+        {% if comp %}
+        <table class="price-table">
+            <thead><tr><th>แหล่ง</th><th>ราคาต่ำสุด</th><th>สินค้า</th></tr></thead>
+            <tbody>
+            {% for source, record in comp.items()|sort(attribute='1.price') %}
+                <tr>
+                    <td>{{ source }}</td>
+                    <td class="price">{{ "%.0f"|format(record.price) }} {{ record.currency }}</td>
+                    <td class="title">
+                        {% if record.url %}<a href="{{ record.url }}" target="_blank" rel="noopener">{{ record.title[:40] }}</a>
+                        {% else %}{{ record.title[:40] }}{% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">ยังไม่มีข้อมูลราคา — กด "รีเฟรช" ที่หน้ารายละเอียด</p>
+        {% endif %}
+
+        <form method="post" action="/products/{{ product.id }}/refresh" class="inline-form">
+            <button type="submit" class="btn btn-small">🔄 รีเฟรชราคา</button>
+        </form>
+        <a href="/products/{{ product.id }}" class="btn btn-small">ดูรายละเอียด →</a>
+    </div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -83,3 +83,20 @@ fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
 fieldset small { color: var(--muted); display: block; }
 
 .actions { display: flex; gap: 10px; margin-bottom: 20px; }
+
+.interval-note { color: var(--muted); font-size: 0.85rem; margin-top: -8px; }
+
+.status-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    background: #11141a;
+    white-space: nowrap;
+}
+.status-online { color: #7ddc8c; border-color: #2f5b37; }
+.status-offline { color: #f29892; border-color: #5b2f2f; }
+.status-manual { color: #e8c36a; border-color: #5b4f2f; }
+.status-unknown { color: var(--muted); }

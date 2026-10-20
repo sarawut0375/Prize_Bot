@@ -7,7 +7,7 @@ import logging
 
 from sqlmodel import Session, select
 
-from app.models import PriceRecord, Product, Source
+from app.models import PriceRecord, Product, ScrapeLog, Source
 from app.scrapers import SCRAPERS
 from app.telegram_notify import send_telegram_message
 
@@ -34,6 +34,11 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
     new_records: list[PriceRecord] = []
 
     for source_name in product.source_list():
+        if source_name == Source.FACEBOOK.value:
+            # No automated scraping for Facebook - see app/scrapers/facebook.py.
+            # Prices for this source are added by hand via add_manual_price().
+            continue
+
         scraper = SCRAPERS.get(source_name)
         if scraper is None:
             logger.warning("Unknown source '%s' for product %s", source_name, product.name)
@@ -43,7 +48,27 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
             listings = scraper.search(product.keyword, limit=10)
         except Exception as exc:  # noqa: BLE001 - scrapers call external sites, keep bot alive
             logger.error("Scraper '%s' failed for '%s': %s", source_name, product.keyword, exc)
+            session.add(
+                ScrapeLog(
+                    product_id=product.id,
+                    source=Source(source_name),
+                    success=False,
+                    items_found=0,
+                    error_message=str(exc)[:500],
+                )
+            )
+            session.commit()
             continue
+
+        session.add(
+            ScrapeLog(
+                product_id=product.id,
+                source=Source(source_name),
+                success=True,
+                items_found=len(listings),
+            )
+        )
+        session.commit()
 
         for listing in listings:
             record = PriceRecord(
@@ -65,6 +90,45 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
 
     _maybe_notify(product, previous_best, new_records)
     return new_records
+
+
+def get_source_status(session: Session, product: Product) -> dict[str, dict]:
+    """Latest scrape status per source for this product, for display in the UI:
+    {"shopee": {"online": True, "items_found": 5, "checked_at": ..., "error": None}, ...}
+    Facebook is always reported as "manual" since it has no automated scraper.
+    """
+    status: dict[str, dict] = {}
+    for source_name in product.source_list():
+        if source_name == Source.FACEBOOK.value:
+            count = session.exec(
+                select(PriceRecord).where(
+                    PriceRecord.product_id == product.id,
+                    PriceRecord.source == Source.FACEBOOK,
+                )
+            ).all()
+            status[source_name] = {
+                "manual": True,
+                "items_found": len(count),
+                "checked_at": max((r.scraped_at for r in count), default=None),
+            }
+            continue
+
+        latest = session.exec(
+            select(ScrapeLog)
+            .where(ScrapeLog.product_id == product.id, ScrapeLog.source == Source(source_name))
+            .order_by(ScrapeLog.checked_at.desc())
+            .limit(1)
+        ).first()
+        if latest is None:
+            status[source_name] = {"online": None, "items_found": 0, "checked_at": None, "error": None}
+        else:
+            status[source_name] = {
+                "online": latest.success,
+                "items_found": latest.items_found,
+                "checked_at": latest.checked_at,
+                "error": latest.error_message,
+            }
+    return status
 
 
 def add_manual_price(

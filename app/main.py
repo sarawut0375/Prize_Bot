@@ -12,9 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.database import engine, init_db
-from app.models import PriceRecord, Product, Source
-from app.price_checker import add_manual_price, check_product
+from app.models import PriceRecord, Product, ScrapeLog, Source
+from app.price_checker import add_manual_price, check_product, get_source_status
 from app.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -66,11 +67,19 @@ def index(request: Request):
     with _session() as session:
         products = session.exec(select(Product).order_by(Product.created_at.desc())).all()
         comparisons = {}
+        source_status = {}
         for p in products:
             comparisons[p.id] = _latest_prices_by_source(session, p.id)
+            source_status[p.id] = get_source_status(session, p)
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "products": products, "comparisons": comparisons},
+        {
+            "request": request,
+            "products": products,
+            "comparisons": comparisons,
+            "source_status": source_status,
+            "scrape_interval_minutes": settings.SCRAPE_INTERVAL_MINUTES,
+        },
     )
 
 
@@ -119,9 +128,16 @@ def product_detail(request: Request, product_id: int):
         by_source = defaultdict(list)
         for r in records:
             by_source[r.source.value].append(r)
+        status = get_source_status(session, product)
     return templates.TemplateResponse(
         "product_detail.html",
-        {"request": request, "product": product, "by_source": dict(by_source)},
+        {
+            "request": request,
+            "product": product,
+            "by_source": dict(by_source),
+            "source_status": status,
+            "scrape_interval_minutes": settings.SCRAPE_INTERVAL_MINUTES,
+        },
     )
 
 
@@ -166,6 +182,11 @@ def delete_product(product_id: int):
         ).all()
         for r in records:
             session.delete(r)
+        logs = session.exec(
+            select(ScrapeLog).where(ScrapeLog.product_id == product_id)
+        ).all()
+        for log in logs:
+            session.delete(log)
         session.delete(product)
         session.commit()
     return RedirectResponse(url="/", status_code=303)

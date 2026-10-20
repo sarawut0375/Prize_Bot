@@ -20,7 +20,7 @@ class Settings:
 
     # --- Scheduler ---
     # How often (in minutes) the bot re-checks prices for every tracked product.
-    SCRAPE_INTERVAL_MINUTES: int = int(os.getenv("SCRAPE_INTERVAL_MINUTES", "60"))
+    SCRAPE_INTERVAL_MINUTES: int = int(os.getenv("SCRAPE_INTERVAL_MINUTES", "5"))
 
     # --- Scraper behaviour ---
     REQUEST_TIMEOUT_SECONDS: int = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "15"))

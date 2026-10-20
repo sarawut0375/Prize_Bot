@@ -55,3 +55,19 @@ class PriceRecord(SQLModel, table=True):
     seller: Optional[str] = None
 
     scraped_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class ScrapeLog(SQLModel, table=True):
+    """One row per (product, source) scrape attempt - whether it succeeded,
+    how many listings it found, and the error if it failed. Used to show
+    "online / offline" status and result counts on the web page."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+
+    source: Source
+    success: bool = Field(description="False if the scraper raised an error (site blocked/down/changed)")
+    items_found: int = Field(default=0, description="How many listings were found this attempt")
+    error_message: Optional[str] = None
+
+    checked_at: datetime = Field(default_factory=datetime.utcnow, index=True)

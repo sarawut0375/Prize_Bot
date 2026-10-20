@@ -5,6 +5,28 @@
 <h1>{{ product.name }}</h1>
 <p class="keyword">คำค้นหา: "{{ product.keyword }}" | แหล่ง: {{ product.sources }}</p>
 {% if product.target_price %}<p>ราคาเป้าหมาย: {{ "%.0f"|format(product.target_price) }} บาท</p>{% endif %}
+<p class="interval-note">🔄 เช็คราคาอัตโนมัติทุก {{ scrape_interval_minutes }} นาที</p>
+
+<h2>สถานะการเชื่อมต่อแต่ละแหล่ง</h2>
+<table class="price-table">
+    <thead><tr><th>แหล่ง</th><th>สถานะ</th><th>จำนวนที่เจอ</th><th>เช็คล่าสุด</th></tr></thead>
+    <tbody>
+    {% for source, st in source_status.items() %}
+        <tr>
+            <td>{{ source }}</td>
+            <td>
+                {% if st.get('manual') %}✋ ใส่ด้วยตนเอง
+                {% elif st.online is none %}⚪ ยังไม่เคยเช็ค
+                {% elif st.online %}🟢 ออนไลน์
+                {% else %}🔴 ออฟไลน์{% if st.error %} ({{ st.error[:60] }}){% endif %}
+                {% endif %}
+            </td>
+            <td>{{ st.items_found }} รายการ</td>
+            <td>{{ st.checked_at.strftime("%Y-%m-%d %H:%M") if st.checked_at else "-" }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
 
 <div class="actions">
     <form method="post" action="/products/{{ product.id }}/refresh" class="inline-form">

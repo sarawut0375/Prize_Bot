@@ -2,6 +2,7 @@
 {% block title %}รายการสินค้า - Price Bot{% endblock %}
 {% block content %}
 <h1>สินค้าที่ติดตามอยู่</h1>
+<p class="interval-note">🔄 ระบบเช็คราคาอัตโนมัติทุก {{ scrape_interval_minutes }} นาที</p>
 
 {% if not products %}
     <p class="empty">ยังไม่มีสินค้าที่ติดตาม — <a href="/products/new">เพิ่มรายการแรก</a></p>
@@ -37,6 +38,31 @@
         </table>
         {% else %}
         <p class="empty">ยังไม่มีข้อมูลราคา — กด "รีเฟรช" ที่หน้ารายละเอียด</p>
+        {% endif %}
+
+        {% set statuses = source_status.get(product.id, {}) %}
+        {% if statuses %}
+        <div class="status-row">
+            {% for source, st in statuses.items() %}
+                {% if st.get('manual') %}
+                    <span class="status-pill status-manual" title="ใส่ราคาด้วยตนเอง">
+                        ✋ {{ source }}: {{ st.items_found }} รายการ
+                    </span>
+                {% elif st.online is none %}
+                    <span class="status-pill status-unknown" title="ยังไม่เคยเช็ค">
+                        ⚪ {{ source }}: ยังไม่เช็ค
+                    </span>
+                {% elif st.online %}
+                    <span class="status-pill status-online" title="เช็คล่าสุด {{ st.checked_at.strftime('%H:%M') }}">
+                        🟢 {{ source }}: เจอ {{ st.items_found }} รายการ
+                    </span>
+                {% else %}
+                    <span class="status-pill status-offline" title="{{ st.error or 'เชื่อมต่อไม่ได้' }}">
+                        🔴 {{ source }}: ออฟไลน์
+                    </span>
+                {% endif %}
+            {% endfor %}
+        </div>
         {% endif %}
 
         <form method="post" action="/products/{{ product.id }}/refresh" class="inline-form">

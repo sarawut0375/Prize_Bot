@@ -3,8 +3,23 @@ Lazada Thailand scraper, using the AJAX version of the catalog/search page
 (the same request the browser makes when you type into Lazada's search box
 and the page is rendered server-side with `&ajax=true`).
 
-LIMITATIONS: Lazada may also rate-limit or change this response shape.
-See shopee.py's docstring for the same caveats - this is best-effort.
+⚠️ DISABLED BY DEFAULT - confirmed actively blocked.
+A real run against this scraper was redirected to Lazada's own anti-bot
+"punish" page:
+    https://www.lazada.co.th/catalog/_____tmd_____/punish?x5secdata=...
+("tmd" = Alibaba group's anti-crawler system, used across Lazada/Taobao).
+That means Lazada's own system already detected and flagged this traffic
+as a bot. Because of that, `app/price_checker.py` does NOT call this
+scraper automatically (see MANUAL_ONLY_SOURCES there) - prices for Lazada
+are entered by hand through the web UI instead, same as Facebook.
+
+This file is kept for reference / in case Lazada's detection logic changes
+later, but re-enabling automated Lazada scraping means deliberately working
+around a security control that has already caught this bot once, which
+risks a harder/longer block on your IP and arguably crosses from "scraping
+a public page" into "circumventing anti-bot protection". If you still want
+to re-enable it, remove `Source.LAZADA.value` from `MANUAL_ONLY_SOURCES` in
+`app/price_checker.py` - but do so at your own risk.
 """
 import json
 import logging

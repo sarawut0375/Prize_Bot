@@ -15,6 +15,19 @@ from app.telegram_notify import send_telegram_message
 
 logger = logging.getLogger("price_bot.checker")
 
+# Sources with NO automated scraping - prices for these are only ever added
+# by hand via add_manual_price(), and get_source_status() reports them as
+# "manual" rather than online/offline.
+#   - facebook: no public API, requires login - see app/scrapers/facebook.py
+#   - lazada: CONFIRMED actively blocked - a real run hit Lazada's own
+#     anti-bot "punish" page (.../catalog/_____tmd_____/punish?x5secdata=...),
+#     meaning their system already flagged the traffic as a bot. Trying to
+#     work around that (e.g. solving their challenge) is circumventing a
+#     security control, not just scraping, and risks escalating to a harder
+#     block - so automated Lazada scraping is disabled outright. See
+#     app/scrapers/lazada.py for details and how to re-enable at your own risk.
+MANUAL_ONLY_SOURCES = {Source.FACEBOOK.value, Source.LAZADA.value}
+
 # Pause for a random stretch between hitting each marketplace within one
 # check, so requests don't all fire back-to-back (which looks bot-like).
 # This only adds delay *between sources* for a single product, not before
@@ -44,9 +57,9 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
 
     is_first_source = True
     for source_name in product.source_list():
-        if source_name == Source.FACEBOOK.value:
-            # No automated scraping for Facebook - see app/scrapers/facebook.py.
-            # Prices for this source are added by hand via add_manual_price().
+        if source_name in MANUAL_ONLY_SOURCES:
+            # No automated scraping for this source - see MANUAL_ONLY_SOURCES
+            # above. Prices are added by hand via add_manual_price().
             continue
 
         scraper = SCRAPERS.get(source_name)
@@ -112,15 +125,16 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
 def get_source_status(session: Session, product: Product) -> dict[str, dict]:
     """Latest scrape status per source for this product, for display in the UI:
     {"shopee": {"online": True, "items_found": 5, "checked_at": ..., "error": None}, ...}
-    Facebook is always reported as "manual" since it has no automated scraper.
+    Sources in MANUAL_ONLY_SOURCES are always reported as "manual" since they
+    have no automated scraper (see MANUAL_ONLY_SOURCES for why).
     """
     status: dict[str, dict] = {}
     for source_name in product.source_list():
-        if source_name == Source.FACEBOOK.value:
+        if source_name in MANUAL_ONLY_SOURCES:
             count = session.exec(
                 select(PriceRecord).where(
                     PriceRecord.product_id == product.id,
-                    PriceRecord.source == Source.FACEBOOK,
+                    PriceRecord.source == Source(source_name),
                 )
             ).all()
             status[source_name] = {

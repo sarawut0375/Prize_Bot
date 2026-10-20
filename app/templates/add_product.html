@@ -18,9 +18,11 @@
         <legend>แหล่งที่ต้องการติดตาม</legend>
         {% for source in all_sources %}
         <label class="checkbox">
-            <input type="checkbox" name="sources" value="{{ source }}" {% if source != 'facebook' %}checked{% endif %}>
+            <input type="checkbox" name="sources" value="{{ source }}" {% if source not in ['facebook', 'lazada'] %}checked{% endif %}>
             {{ source }}
-            {% if source == 'facebook' %}<small>(ใส่ราคาเองในหน้ารายละเอียด — ดูเหตุผลใน README)</small>{% endif %}
+            {% if source == 'facebook' %}<small>(ไม่มี API สาธารณะ ต้องล็อกอิน — ใส่ราคาเองในหน้ารายละเอียดแทน)</small>
+            {% elif source == 'lazada' %}<small>(ปิดการสืบอัตโนมัติ — ตรวจพบว่าโดนระบบแอนตี้บอทของ Lazada บล็อกจริง ใส่ราคาเองในหน้ารายละเอียดแทนเพื่อความปลอดภัย)</small>
+            {% endif %}
         </label>
         {% endfor %}
     </fieldset>

@@ -6,6 +6,7 @@ anti-scraping protection.
 """
 import logging
 import random
+import time
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -21,12 +22,24 @@ logger = logging.getLogger("price_bot.scheduler")
 scheduler = BackgroundScheduler()
 JOB_ID = "price_check_job"
 
+# Extra pause between products in one scheduled run - check_product() already
+# pauses between sources within a product; this spaces out whole products too
+# so a run with many tracked products doesn't fire everything in a tight burst.
+MIN_DELAY_BETWEEN_PRODUCTS_SECONDS = 3.0
+MAX_DELAY_BETWEEN_PRODUCTS_SECONDS = 8.0
+
 
 def check_all_products() -> None:
     logger.info("Running scheduled price check for all active products...")
     with Session(engine) as session:
         products = session.exec(select(Product).where(Product.is_active == True)).all()  # noqa: E712
-        for product in products:
+        for i, product in enumerate(products):
+            if i > 0:
+                time.sleep(
+                    random.uniform(
+                        MIN_DELAY_BETWEEN_PRODUCTS_SECONDS, MAX_DELAY_BETWEEN_PRODUCTS_SECONDS
+                    )
+                )
             try:
                 check_product(session, product)
             except Exception as exc:  # noqa: BLE001

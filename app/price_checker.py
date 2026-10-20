@@ -4,6 +4,8 @@ store a PriceRecord per listing found, and decide whether a Telegram
 alert should go out (price dropped / changed / hit target).
 """
 import logging
+import random
+import time
 
 from sqlmodel import Session, select
 
@@ -12,6 +14,13 @@ from app.scrapers import SCRAPERS
 from app.telegram_notify import send_telegram_message
 
 logger = logging.getLogger("price_bot.checker")
+
+# Pause for a random stretch between hitting each marketplace within one
+# check, so requests don't all fire back-to-back (which looks bot-like).
+# This only adds delay *between sources* for a single product, not before
+# the very first one.
+MIN_DELAY_BETWEEN_SOURCES_SECONDS = 2.0
+MAX_DELAY_BETWEEN_SOURCES_SECONDS = 6.0
 
 
 def _best_previous_price(session: Session, product_id: int) -> float | None:
@@ -33,6 +42,7 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
     previous_best = _best_previous_price(session, product.id)
     new_records: list[PriceRecord] = []
 
+    is_first_source = True
     for source_name in product.source_list():
         if source_name == Source.FACEBOOK.value:
             # No automated scraping for Facebook - see app/scrapers/facebook.py.
@@ -43,6 +53,13 @@ def check_product(session: Session, product: Product) -> list[PriceRecord]:
         if scraper is None:
             logger.warning("Unknown source '%s' for product %s", source_name, product.name)
             continue
+
+        if not is_first_source:
+            delay = random.uniform(
+                MIN_DELAY_BETWEEN_SOURCES_SECONDS, MAX_DELAY_BETWEEN_SOURCES_SECONDS
+            )
+            time.sleep(delay)
+        is_first_source = False
 
         try:
             listings = scraper.search(product.keyword, limit=10)

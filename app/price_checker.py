@@ -21,12 +21,18 @@ logger = logging.getLogger("price_bot.checker")
 #   - facebook: no public API, requires login - see app/scrapers/facebook.py
 #   - lazada: CONFIRMED actively blocked - a real run hit Lazada's own
 #     anti-bot "punish" page (.../catalog/_____tmd_____/punish?x5secdata=...),
-#     meaning their system already flagged the traffic as a bot. Trying to
-#     work around that (e.g. solving their challenge) is circumventing a
-#     security control, not just scraping, and risks escalating to a harder
-#     block - so automated Lazada scraping is disabled outright. See
+#     meaning their system already flagged the traffic as a bot. See
 #     app/scrapers/lazada.py for details and how to re-enable at your own risk.
-MANUAL_ONLY_SOURCES = {Source.FACEBOOK.value, Source.LAZADA.value}
+#   - shopee: CONFIRMED actively blocked too - a real run got HTTP 403 with
+#     Shopee's own anti-bot error body ({"error":90309999,
+#     "redirect_to_error_page":true,...}). Same reasoning as Lazada: this is
+#     their system flagging the traffic as a bot, not a transient issue, so
+#     automated scraping is disabled rather than trying to work around it.
+#     See app/scrapers/shopee.py for details and how to re-enable at your own risk.
+# Trying to work around either of these (solving challenges, rotating IPs,
+# etc.) is circumventing a security control that has already caught this bot
+# once, not just "scraping a public page" - so both are disabled outright.
+MANUAL_ONLY_SOURCES = {Source.FACEBOOK.value, Source.LAZADA.value, Source.SHOPEE.value}
 
 # Pause for a random stretch between hitting each marketplace within one
 # check, so requests don't all fire back-to-back (which looks bot-like).

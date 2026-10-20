@@ -2,14 +2,28 @@
 Shopee Thailand scraper, using Shopee's own public-facing search JSON
 endpoint (the same one shopee.co.th calls from the browser).
 
-IMPORTANT / LIMITATIONS:
-Shopee actively rate-limits and anti-bot-protects this endpoint. It can
-start returning HTTP 403 / empty results for datacenter IPs, or require
-a valid `csrftoken`/session cookie. If that happens:
-  1. Try lowering SCRAPE_INTERVAL in .env (scrape less often).
-  2. Consider running the bot from a residential/home IP (e.g. on your
-     own PC or a Raspberry Pi) rather than a cloud server.
-  3. As a fallback, add prices for this product manually from the web UI.
+⚠️ DISABLED BY DEFAULT - confirmed actively blocked.
+A real run against this scraper got HTTP 403 with Shopee's own anti-bot
+error body:
+    {"is_customized":false,"is_login":false,"action_type":2,
+     "error":90309999,"tracking_id":"...","redirect_to_error_page":true}
+That means Shopee's own system already detected and flagged this traffic
+as a bot - same situation as Lazada (see app/scrapers/lazada.py). Because
+of that, `app/price_checker.py` does NOT call this scraper automatically
+(see MANUAL_ONLY_SOURCES there) - prices for Shopee are entered by hand
+through the web UI instead.
+
+This file is kept for reference / in case Shopee's detection logic changes
+later, but re-enabling automated Shopee scraping means deliberately working
+around a security control that has already caught this bot once, which
+risks a harder/longer block on your IP. If you still want to re-enable it,
+remove `Source.SHOPEE.value` from `MANUAL_ONLY_SOURCES` in
+`app/price_checker.py` - but do so at your own risk. If you do, and it
+starts failing again:
+  1. Try widening SCRAPE_INTERVAL_MIN/MAX_MINUTES in .env (scrape less often).
+  2. Consider running the bot from a residential/home IP rather than a
+     cloud server.
+  3. Fall back to adding prices for this product manually from the web UI.
 """
 import logging
 from urllib.parse import quote

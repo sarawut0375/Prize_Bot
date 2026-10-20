@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}บันทึกแล้ว - Price Bot{% endblock %}
+{% block body_class %}popup{% endblock %}
+{% block nav %}{% endblock %}
+{% block main_class %}popup-main{% endblock %}
+{% block content %}
+<div class="done">
+    <div class="done-check">✓</div>
+    <h1>{% if result.is_new %}บันทึกแล้ว{% elif result.price_changed %}อัปเดตราคาแล้ว{% else %}บันทึกซ้ำ (ราคาเท่าเดิม){% endif %}</h1>
+    <p><b>{{ fmt_price(result.listing.price) }} บาท</b> → {{ product_name }}</p>
+    {% if 'target' in result.events %}<p class="hit-banner">🎯 ถึงราคาเป้าหมายแล้ว</p>{% endif %}
+    {% if 'new_lowest' in result.events %}<p>📉 ราคาต่ำสุดใหม่ของสินค้านี้</p>{% endif %}
+    {% if telegram %}
+        <p class="small {% if telegram[0] %}muted{% else %}warn{% endif %}">Telegram: {{ telegram[1] }}</p>
+    {% endif %}
+    <div class="row-actions center">
+        <a class="btn" href="/product/{{ product_id }}" target="_blank">ดูผลลัพธ์</a>
+        <button class="btn btn-primary" onclick="window.close()">ปิดหน้าต่าง</button>
+    </div>
+    <p class="muted small" id="autoclose">หน้าต่างจะปิดเองใน 3 วินาที</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  var hold = false;
+  document.addEventListener('mousemove', function () { hold = true; document.getElementById('autoclose').textContent = ''; }, { once: true });
+  setTimeout(function () { if (!hold) window.close(); }, 3000);
+</script>
+{% endblock %}

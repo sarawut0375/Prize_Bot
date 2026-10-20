@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}เก็บราคา - Price Bot{% endblock %}
+{% block body_class %}popup{% endblock %}
+{% block nav %}{% endblock %}
+{% block main_class %}popup-main{% endblock %}
+{% block content %}
+<header class="popup-head">
+    <span class="brand"><span class="brand-mark">฿</span> เก็บราคา</span>
+    <span class="src" style="--c: {{ source_color(source) }}">{{ source_label(source) }}</span>
+</header>
+
+{% if not products %}
+    <div class="flash flash-err">ยังไม่มีสินค้าในระบบ — <a href="/manage#products" target="_blank">เพิ่มสินค้าที่หน้าจัดการ</a> ก่อน แล้วกดปุ่มเก็บราคาอีกครั้ง</div>
+{% else %}
+
+{% if existing %}<div class="flash flash-info">ลิงก์นี้เคยบันทึกไว้แล้ว ราคาเดิม {{ fmt_price(existing.price) }} บาท — บันทึกอีกครั้งจะอัปเดตราคา</div>{% endif %}
+
+<form method="post" action="/capture" class="capture-form">
+    <input type="hidden" name="csrf" value="{{ csrf() }}">
+    <input type="hidden" name="url" value="{{ url }}">
+    <input type="hidden" name="image_url" value="{{ image }}">
+    <input type="hidden" name="source" value="{{ source }}">
+
+    <div class="capture-preview">
+        {% if image %}<img src="{{ image }}" alt="" referrerpolicy="no-referrer">{% endif %}
+        <div class="ellipsis-2 small muted">{{ url }}</div>
+    </div>
+
+    <label>เก็บไว้ในสินค้า
+        <select name="product_id" required>
+            {% for p in products %}
+            <option value="{{ p.id }}" {% if p.id == selected_id %}selected{% endif %}>{{ p.name }}{% if p.target_price is not none %} (เป้า {{ fmt_price(p.target_price) }}){% endif %}</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label>ราคา (บาท)
+        <input name="price" value="{{ fmt_price(price) if price is not none else '' }}" inputmode="decimal" required autofocus class="price-input">
+        {% if price is none %}<small class="warn">ไม่เจอราคาในหน้านี้ — พิมพ์เอง หรือปิดหน้าต่างนี้ ลากคลุมตัวเลขราคาบนหน้าเว็บ แล้วกดปุ่มอีกครั้ง</small>
+        {% elif sel %}<small class="muted">ใช้ตัวเลขจากข้อความที่คุณลากคลุมไว้</small>{% endif %}
+    </label>
+
+    <label>ชื่อสินค้า<textarea name="title" rows="2" required>{{ title }}</textarea></label>
+
+    <div class="two-col">
+        <label>ผู้ขาย<input name="seller"></label>
+        <label>พื้นที่<input name="location"></label>
+    </div>
+    <div class="two-col">
+        <label>สภาพ
+            <select name="condition"><option value="">ไม่ระบุ</option><option>มือหนึ่ง</option><option>มือสอง</option></select>
+        </label>
+        <label>หมายเหตุ<input name="note"></label>
+    </div>
+
+    <div class="row-actions">
+        <button class="btn btn-primary btn-wide">บันทึก</button>
+        <button type="button" class="btn" onclick="window.close()">ยกเลิก</button>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

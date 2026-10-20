@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Price Bot{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block nav %}
+<header class="topbar">
+    <a href="/" class="brand"><span class="brand-mark">฿</span> Price Bot</a>
+    <nav class="tabs">
+        <a href="/" class="tab {% if active == 'results' %}is-active{% endif %}">ผลลัพธ์</a>
+        <a href="/manage" class="tab {% if active == 'manage' %}is-active{% endif %}">จัดการ</a>
+    </nav>
+</header>
+{% endblock %}
+<main class="{% block main_class %}container{% endblock %}">
+    {% if msg %}<div class="flash flash-ok">{{ msg }}</div>{% endif %}
+    {% if err %}<div class="flash flash-err">{{ err }}</div>{% endif %}
+    {% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

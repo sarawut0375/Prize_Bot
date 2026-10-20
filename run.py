@@ -1,7 +1,8 @@
-"""Entry point: `python run.py`"""
+"""Start Price Bot:  python run.py   then open http://localhost:8000"""
 import uvicorn
 
-from app.config import settings
+from pricebot.config import HOST, PORT
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=False)
+    print(f"\n  Price Bot -> http://localhost:{PORT}\n  (กด Ctrl+C เพื่อหยุด)\n")
+    uvicorn.run("pricebot.main:app", host=HOST, port=PORT, reload=False)

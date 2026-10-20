@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% set active = 'manage' %}
+{% block title %}จัดการ - Price Bot{% endblock %}
+{% block main_class %}container manage{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>จัดการ</h1>
+        <p class="muted">ตั้งค่าสินค้าที่ต้องการหา และการเชื่อมต่อกับเว็บต่างๆ (ข้อมูลทั้งหมดเก็บอยู่ในเครื่องนี้เท่านั้น)</p>
+    </div>
+</div>
+
+<div class="manage-layout">
+<nav class="side-nav">
+    <a href="#products">สินค้าที่ต้องการหา</a>
+    <a href="#bookmarklet">ปุ่มเก็บราคา</a>
+    <a href="#sites">ลิงก์ค้นหาแต่ละเว็บ</a>
+    <a href="#telegram">Telegram</a>
+    <a href="#shopee">Shopee API</a>
+    <a href="#account">บัญชีที่ใช้ค้นหา</a>
+</nav>
+
+<div class="manage-body">
+
+<!-- ===================================================== products -->
+<section class="panel" id="products">
+    <h2>สินค้าที่ต้องการหา</h2>
+    <form method="post" action="/manage/products/add" class="form-grid add-product">
+        <input type="hidden" name="csrf" value="{{ csrf() }}">
+        <label class="span-2">ชื่อสินค้า<input name="name" required placeholder="เช่น การ์ดจอ RTX 4060"></label>
+        <label class="span-2">คำค้นหา <small class="muted">(ว่างไว้ = ใช้ชื่อสินค้า)</small><input name="keyword" placeholder="เช่น rtx 4060 8gb"></label>
+        <label>ราคาเป้าหมาย (บาท)<input name="target_price" inputmode="decimal" placeholder="ไม่บังคับ"></label>
+        <label class="span-2">หมายเหตุ<input name="note" placeholder="เช่น เอามือสองสภาพดี ไม่เกินปีนี้"></label>
+        <div class="align-end"><button class="btn btn-primary">+ เพิ่มสินค้า</button></div>
+    </form>
+
+    {% if products %}
+    <div class="product-list">
+        {% for p in products %}
+        <form method="post" action="/manage/products/{{ p.id }}/update" class="product-row {% if not p.is_active %}is-paused{% endif %}" id="product-{{ p.id }}">
+            <input type="hidden" name="csrf" value="{{ csrf() }}">
+            <label>ชื่อ<input name="name" value="{{ p.name }}" required></label>
+            <label>คำค้นหา<input name="keyword" value="{{ p.keyword }}"></label>
+            <label>เป้า (฿)<input name="target_price" value="{{ fmt_price(p.target_price) if p.target_price is not none else '' }}" inputmode="decimal"></label>
+            <label>หมายเหตุ<input name="note" value="{{ p.note or '' }}"></label>
+            <label class="check"><input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %}> ติดตามอยู่</label>
+            <div class="row-actions">
+                <button class="btn btn-small">บันทึก</button>
+                <button class="btn btn-small btn-danger" formaction="/manage/products/{{ p.id }}/delete"
+                        onclick="return confirm('ลบ “{{ p.name }}” และราคาที่เก็บไว้ทั้งหมด?')">ลบ</button>
+            </div>
+        </form>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="muted">ยังไม่มีสินค้า เพิ่มรายการแรกด้านบน</p>
+    {% endif %}
+</section>
+
+<!-- ===================================================== bookmarklet -->
+<section class="panel" id="bookmarklet">
+    <h2>ปุ่มเก็บราคา <span class="badge">ใช้กับทุกเว็บ</span></h2>
+    <p>ปุ่มนี้อยู่บนแถบ Bookmark ของเบราว์เซอร์คุณ เวลาเปิดดูสินค้าที่ไหนก็ได้ (Facebook, Shopee, Lazada, Kaidee หรือเว็บร้านอื่น) กดทีเดียว ระบบจะดึงชื่อ ลิงก์ รูป และราคา จากหน้าที่คุณเปิดอยู่มาให้ยืนยันแล้วบันทึก</p>
+
+    <div class="bookmarklet-box">
+        <a class="bookmarklet" href="{{ bookmarklet }}" onclick="alert('ลากปุ่มนี้ไปวางที่แถบ Bookmark ด้านบนของเบราว์เซอร์ (ไม่ต้องคลิก)'); return false;">📌 เก็บราคา</a>
+        <span class="muted">← <b>ลาก</b>ปุ่มนี้ไปวางที่แถบ Bookmark</span>
+    </div>
+
+    <ol class="steps">
+        <li>ถ้าไม่เห็นแถบ Bookmark กด <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> เพื่อเปิด</li>
+        <li>ลากปุ่ม <b>📌 เก็บราคา</b> ไปวางบนแถบนั้น</li>
+        <li>เปิดหน้าสินค้าที่สนใจ → กดปุ่ม → หน้าต่างเล็กของ Price Bot จะเด้งขึ้นมา → ตรวจสอบราคา → บันทึก</li>
+        <li><b>ถ้าราคาไม่ขึ้นเอง</b> (เช่น Facebook): ใช้เมาส์<b>ลากคลุมตัวเลขราคา</b>บนหน้าเว็บก่อน แล้วค่อยกดปุ่ม</li>
+        <li>ถ้าเบราว์เซอร์บล็อกหน้าต่างเด้ง ให้กด "อนุญาตป๊อปอัป" สำหรับเว็บนั้นครั้งเดียว</li>
+    </ol>
+
+    <form method="post" action="/manage/general" class="inline-form">
+        <input type="hidden" name="csrf" value="{{ csrf() }}">
+        <label>ที่อยู่ของ Price Bot <small class="muted">(เปลี่ยนเฉพาะถ้ารันพอร์ตอื่น)</small>
+            <input name="base_url" value="{{ cfg.base_url }}"></label>
+        <button class="btn btn-small">บันทึก</button>
+    </form>
+</section>
+
+<!-- ===================================================== sites -->
+<section class="panel" id="sites">
+    <h2>ลิงก์ค้นหาแต่ละเว็บ</h2>
+    <p class="muted">ใช้สร้างปุ่ม "ค้นหาใน ..." ในหน้าผลลัพธ์ ระบบจะใส่คำค้นหาแทน <code>{q}</code> แล้วเปิดในเบราว์เซอร์ของคุณ (ระบบไม่ได้เข้าเว็บเหล่านี้เอง)</p>
+    <form method="post" action="/manage/sites" class="sites-form">
+        <input type="hidden" name="csrf" value="{{ csrf() }}">
+        {% for site in SITES %}
+        <div class="site-row">
+            <label class="check"><input type="checkbox" name="site_enabled_{{ site.key }}" value="1" {% if cfg['site_enabled_' ~ site.key] == '1' %}checked{% endif %}>
+                <span class="src" style="--c: {{ site.color }}">{{ site.label }}</span></label>
+            <input name="search_url_{{ site.key }}" value="{{ cfg['search_url_' ~ site.key] }}" spellcheck="false">
+        </div>
+        {% endfor %}
+        <p class="muted small">Facebook: เปลี่ยน <code>bangkok</code> ในลิงก์เป็นพื้นที่ที่คุณต้องการได้ (ดูจาก URL ตอนเปิด Marketplace เอง)</p>
+        <div class="row-actions">
+            <button class="btn btn-primary">บันทึกลิงก์</button>
+            <button class="btn btn-small" formaction="/manage/sites/reset" formnovalidate>คืนค่าเริ่มต้น</button>
+        </div>
+    </form>
+</section>
+
+<!-- ===================================================== telegram -->
+<section class="panel" id="telegram">
+    <h2>Telegram <span class="badge {% if cfg.telegram_bot_token and cfg.telegram_chat_id %}badge-ok{% else %}badge-off{% endif %}">{% if cfg.telegram_bot_token and cfg.telegram_chat_id %}เชื่อมต่อแล้ว{% else %}ยังไม่ได้ตั้งค่า{% endif %}</span></h2>
+    <form method="post" action="/manage/telegram" class="form-grid">
+        <input type="hidden" name="csrf" value="{{ csrf() }}">
+        <label class="span-2">Bot Token
+            <input name="bot_token" type="password" autocomplete="off" placeholder="{{ mask(cfg.telegram_bot_token) or '123456789:ABC...' }}">
+            {% if cfg.telegram_bot_token %}<small class="muted">บันทึกไว้แล้ว ({{ mask(cfg.telegram_bot_token) }}) — เว้นว่างไว้ถ้าไม่ต้องการเปลี่ยน</small>{% endif %}
+        </label>
+        <label class="span-2">Chat ID<input name="chat_id" value="{{ cfg.telegram_chat_id }}" placeholder="เช่น 123456789"></label>
+        <fieldset class="span-4">
+            <legend>แจ้งเตือนเมื่อ</legend>
+            <label class="check"><input type="checkbox" name="notify_target" value="1" {% if cfg.notify_target == '1' %}checked{% endif %}> ราคาถึง/ต่ำกว่าราคาเป้าหมาย</label>
+            <label class="check"><input type="checkbox" name="notify_new_lowest" value="1" {% if cfg.notify_new_lowest == '1' %}checked{% endif %}> เจอราคาต่ำสุดใหม่ของสินค้านั้น</label>
+            <label class="check"><input type="checkbox" name="notify_price_change" value="1" {% if cfg.notify_price_change == '1' %}checked{% endif %}> รายการที่เก็บไว้เปลี่ยนราคา</label>
+        </fieldset>
+        <div class="span-4 row-actions">
+            <button class="btn btn-primary" name="action" value="save">บันทึก</button>
+            <button class="btn" name="action" value="test">บันทึกและส่งข้อความทดสอบ</button>
+            {% if cfg.telegram_bot_token %}<button class="btn btn-small btn-danger" formaction="/manage/telegram/clear" formnovalidate>ลบ Token</button>{% endif %}
+        </div>
+    </form>
+    <details class="howto">
+        <summary>วิธีหา Bot Token และ Chat ID</summary>
+        <ol>
+            <li>ใน Telegram ค้นหา <b>@BotFather</b> → พิมพ์ <code>/newbot</code> → ตั้งชื่อ → จะได้ Bot Token</li>
+            <li>เปิดแชทกับบอทที่เพิ่งสร้าง แล้วส่งข้อความอะไรก็ได้ 1 ครั้ง</li>
+            <li>เปิด <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> ในเบราว์เซอร์ หาตัวเลขหลัง <code>"chat":{"id":</code> นั่นคือ Chat ID</li>
+        </ol>
+    </details>
+</section>
+
+<!-- ===================================================== shopee -->
+<section class="panel" id="shopee">
+    <h2>Shopee Affiliate API <span class="badge badge-ok">ช่องทางทางการ</span>
+        <span class="badge {% if cfg.shopee_app_id and cfg.shopee_secret %}badge-ok{% else %}badge-off{% endif %}">{% if cfg.shopee_app_id and cfg.shopee_secret %}ใส่ key แล้ว{% else %}ยังไม่มี key{% endif %}</span></h2>
+    <p class="muted">ช่องทางเดียวที่ระบบค้นหาให้อัตโนมัติ เพราะเป็น API ที่ Shopee อนุญาตให้ใช้ด้วย key ของคุณเอง ไม่ใช่การเข้าเว็บแทนคุณ จึงไม่เสี่ยงโดนบล็อก</p>
+    <form method="post" action="/manage/shopee" class="form-grid">
+        <input type="hidden" name="csrf" value="{{ csrf() }}">
+        <label class="span-2">AppID<input name="app_id" value="{{ cfg.shopee_app_id }}" autocomplete="off"></label>
+        <label class="span-2">Secret
+            <input name="secret" type="password" autocomplete="off" placeholder="{{ mask(cfg.shopee_secret) }}">
+            {% if cfg.shopee_secret %}<small class="muted">บันทึกไว้แล้ว — เว้นว่างไว้ถ้าไม่ต้องการเปลี่ยน</small>{% endif %}
+        </label>
+        <label class="check span-2"><input type="checkbox" name="enabled" value="1" {% if cfg.shopee_api_enabled == '1' %}checked{% endif %}> ค้นหาอัตโนมัติตามรอบเวลา</label>
+        <label>ทุกกี่นาที<input name="interval" value="{{ cfg.shopee_api_interval_minutes }}" inputmode="numeric"></label>
+        <label>จำนวนต่อการค้น (1-50)<input name="limit" value="{{ cfg.shopee_api_limit }}" inputmode="numeric"></label>
+        <div class="span-4 row-actions">
+            <button class="btn btn-primary" name="action" value="save">บันทึก</button>
+            <button class="btn" name="action" value="test">บันทึกและทดสอบการเชื่อมต่อ</button>
+            {% if cfg.shopee_app_id or cfg.shopee_secret %}<button class="btn btn-small btn-danger" formaction="/manage/shopee/clear" formnovalidate>ลบ key</button>{% endif %}
+        </div>
+    </form>
+    <details class="howto">
+        <summary>วิธีขอ AppID และ Secret</summary>
+        <ol>
+            <li>สมัคร Shopee Affiliate Program ที่ <a href="https://affiliate.shopee.co.th" target="_blank" rel="noopener">affiliate.shopee.co.th</a> (ใช้บัญชี Shopee ใหม่ที่คุณตั้งใจใช้กับโปรเจกต์นี้ได้)</li>
+            <li>เมื่อได้รับอนุมัติ เข้าเมนู Open API ในหน้า affiliate แล้วขอสิทธิ์ใช้งาน</li>
+            <li>คัดลอก AppID และ Secret มาใส่ที่นี่ แล้วกด "ทดสอบการเชื่อมต่อ"</li>
+        </ol>
+        <p class="muted small">หมายเหตุ: ส่วนนี้เขียนตามเอกสาร API ของ Shopee แต่ยังไม่ได้ทดสอบกับ key จริง ถ้าทดสอบแล้วขึ้น error ให้ส่งข้อความ error มาเพื่อปรับแก้</p>
+    </details>
+</section>
+
+<!-- ===================================================== account note -->
+<section class="panel" id="account">
+    <h2>บัญชีที่ใช้ค้นหา</h2>
+    <p>ใช้บัญชีใหม่ที่ตั้งไว้สำหรับงานนี้ <b>ล็อกอินในเบราว์เซอร์ของคุณเองตามปกติ</b> แล้วใช้ลิงก์ค้นหาและปุ่มเก็บราคาได้เลย</p>
+    <ul class="plain">
+        <li>✅ ระบบ<b>ไม่เก็บ</b>รหัสผ่าน Facebook / Shopee / Lazada / Kaidee และ<b>ไม่ล็อกอินแทน</b>คุณ</li>
+        <li>✅ ระบบ<b>ไม่เข้าเว็บเหล่านี้เอง</b> (ยกเว้น Shopee ผ่าน API ทางการ) — ทุกหน้าที่ถูกเปิดคือคุณเปิดเอง</li>
+        <li>เหตุผล: การให้โปรแกรมล็อกอินและกดแทนคน คือสิ่งที่เว็บเหล่านี้ตรวจจับและแบนบัญชี เมื่อคนเป็นคนกดเอง บัญชีก็ใช้งานเหมือนผู้ใช้ทั่วไป</li>
+    </ul>
+</section>
+
+</div>
+</div>
+{% endblock %}

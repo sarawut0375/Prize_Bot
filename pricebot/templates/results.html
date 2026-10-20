@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set active = 'results' %}
+{% block title %}ผลลัพธ์ - Price Bot{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>ผลลัพธ์การค้นหา</h1>
+        <p class="muted">ราคาที่ดีที่สุดของแต่ละสินค้า รวมจากทุกเว็บ</p>
+    </div>
+    <a href="/manage#products" class="btn btn-primary">+ เพิ่มสินค้าที่ต้องการหา</a>
+</div>
+
+{% if not summaries %}
+<section class="empty-state">
+    <h2>ยังไม่มีสินค้าที่ต้องการหา</h2>
+    <ol class="steps">
+        <li>ไปที่หน้า <a href="/manage#products">จัดการ</a> แล้วเพิ่มสินค้า เช่น "การ์ดจอ RTX 4060"</li>
+        <li>ลากปุ่ม <b>เก็บราคา</b> ในหน้าจัดการไปไว้ที่แถบ Bookmark ของเบราว์เซอร์</li>
+        <li>กลับมาหน้านี้ กดลิงก์ค้นหาของแต่ละเว็บ เจอชิ้นที่ใช่ก็กด <b>เก็บราคา</b></li>
+    </ol>
+</section>
+{% endif %}
+
+<div class="cards">
+{% for s in summaries %}
+    {% set p = s.product %}
+    <article class="card {% if not p.is_active %}is-paused{% endif %} {% if s.hit_target %}is-hit{% endif %}">
+        <header class="card-head">
+            <div>
+                <h2><a href="/product/{{ p.id }}">{{ p.name }}</a></h2>
+                <p class="muted small">คำค้น: {{ p.keyword }}{% if not p.is_active %} · <span class="tag">หยุดติดตาม</span>{% endif %}</p>
+            </div>
+            {% if p.target_price is not none %}
+                <span class="pill {% if s.hit_target %}pill-hit{% endif %}">เป้า {{ fmt_price(p.target_price) }} ฿</span>
+            {% endif %}
+        </header>
+
+        <div class="best">
+            {% if s.lowest %}
+                <div class="best-price">{{ fmt_price(s.lowest.price) }}<span>บาท</span></div>
+                <div class="best-meta">
+                    <span class="src" style="--c: {{ source_color(s.lowest.source) }}">{{ source_label(s.lowest.source) }}</span>
+                    {% if s.lowest.url %}<a href="{{ s.lowest.url }}" target="_blank" rel="noopener" class="ellipsis">{{ s.lowest.title }}</a>
+                    {% else %}<span class="ellipsis">{{ s.lowest.title }}</span>{% endif %}
+                </div>
+                {% if s.hit_target %}<div class="hit-banner">🎯 ถึงราคาเป้าหมายแล้ว</div>{% endif %}
+            {% else %}
+                <div class="best-empty">ยังไม่มีราคา — เปิดลิงก์ค้นหาด้านล่างแล้วกด "เก็บราคา"</div>
+            {% endif %}
+        </div>
+
+        {% if s.by_source|length > 1 %}
+        <ul class="per-source">
+            {% for l in s.by_source %}
+            <li><span class="src" style="--c: {{ source_color(l.source) }}">{{ source_label(l.source) }}</span><b>{{ fmt_price(l.price) }} ฿</b></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="search-links">
+            <span class="label">ค้นหาใน:</span>
+            {% for link in s.search_links %}
+                <a href="{{ link.url }}" target="_blank" rel="noopener" class="chip" style="--c: {{ link.site.color }}">{{ link.site.label }} ↗</a>
+            {% endfor %}
+        </div>
+
+        <footer class="card-foot">
+            <span class="muted small">{{ s.count }} รายการ{% if s.last_update %} · อัปเดต {{ s.last_update.strftime('%d/%m %H:%M') }}{% endif %}</span>
+            <div class="actions">
+                {% if shopee_ready %}
+                <form method="post" action="/product/{{ p.id }}/shopee">
+                    <input type="hidden" name="csrf" value="{{ csrf() }}">
+                    <input type="hidden" name="back" value="/">
+                    <button class="btn btn-small" title="ค้นผ่าน Shopee Affiliate API (ทางการ)">ดึง Shopee API</button>
+                </form>
+                {% endif %}
+                <a href="/product/{{ p.id }}" class="btn btn-small">ดูทั้งหมด →</a>
+            </div>
+        </footer>
+    </article>
+{% endfor %}
+</div>
+{% endblock %}

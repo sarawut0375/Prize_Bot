@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% set active = 'results' %}
+{% set p = s.product %}
+{% block title %}{{ p.name }} - Price Bot{% endblock %}
+{% block content %}
+<a href="/" class="back">← ผลลัพธ์ทั้งหมด</a>
+
+<div class="page-head">
+    <div>
+        <h1>{{ p.name }}</h1>
+        <p class="muted">คำค้น: <b>{{ p.keyword }}</b>{% if p.note %} · {{ p.note }}{% endif %} · <a href="/manage#product-{{ p.id }}">แก้ไข</a></p>
+    </div>
+    <div class="stat-row">
+        <div class="stat">
+            <span class="stat-label">ราคาต่ำสุด</span>
+            <span class="stat-value">{{ fmt_price(s.lowest.price) if s.lowest else '-' }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">ราคาเป้าหมาย</span>
+            <span class="stat-value {% if s.hit_target %}is-hit{% endif %}">{{ fmt_price(p.target_price) if p.target_price is not none else '-' }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">จำนวนที่เก็บไว้</span>
+            <span class="stat-value">{{ s.count }}</span>
+        </div>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="search-links">
+        <span class="label">ค้นหา "{{ p.keyword }}" ใน:</span>
+        {% for link in s.search_links %}
+            <a href="{{ link.url }}" target="_blank" rel="noopener" class="chip" style="--c: {{ link.site.color }}">{{ link.site.label }} ↗</a>
+        {% endfor %}
+        {% if s.search_links|length > 1 %}<button type="button" class="btn btn-small" id="open-all">เปิดทุกเว็บ</button>{% endif %}
+        {% if shopee_ready %}
+        <form method="post" action="/product/{{ p.id }}/shopee" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf() }}">
+            <button class="btn btn-small">ดึง Shopee API</button>
+        </form>
+        {% endif %}
+    </div>
+    <p class="muted small hint">เจอชิ้นที่ใช่ → กดปุ่ม <b>เก็บราคา</b> ที่แถบ Bookmark (ถ้าราคาไม่ขึ้นเอง ให้ลากคลุมตัวเลขราคาบนหน้าเว็บก่อนกด)</p>
+</section>
+
+<section class="panel">
+    <div class="panel-head">
+        <h2>รายการที่เก็บไว้</h2>
+        {% if sources|length > 1 %}
+        <div class="filter" role="group">
+            <button type="button" class="chip is-on" data-filter="">ทั้งหมด</button>
+            {% for src in sources %}<button type="button" class="chip" data-filter="{{ src }}" style="--c: {{ source_color(src) }}">{{ source_label(src) }}</button>{% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if listings %}
+    <div class="table-wrap">
+    <table class="listing-table" id="listings">
+        <thead>
+            <tr>
+                <th></th>
+                <th>สินค้า</th>
+                <th class="sortable num" data-sort="price">ราคา (฿)</th>
+                <th>แหล่ง</th>
+                <th>ผู้ขาย / พื้นที่</th>
+                <th>สภาพ</th>
+                <th class="sortable" data-sort="seen">อัปเดตล่าสุด</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for l in listings %}
+            <tr data-source="{{ l.source }}" data-price="{{ l.price }}" data-seen="{{ l.last_seen.timestamp() }}"
+                class="{% if s.lowest and l.id == s.lowest.id %}is-lowest{% endif %} {% if p.target_price is not none and l.price <= p.target_price %}is-hit{% endif %}">
+                <td class="thumb">{% if l.image_url %}<img src="{{ l.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</td>
+                <td class="title-cell">
+                    {% if l.url %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title }}</a>{% else %}{{ l.title }}{% endif %}
+                    {% if l.note %}<div class="muted small">{{ l.note }}</div>{% endif %}
+                    {% if s.lowest and l.id == s.lowest.id %}<span class="tag tag-best">ถูกที่สุด</span>{% endif %}
+                </td>
+                <td class="num price-cell">
+                    <b>{{ fmt_price(l.price) }}</b>
+                    {% if l.previous_price is not none and l.previous_price != l.price %}
+                        <div class="delta {% if l.price < l.previous_price %}down{% else %}up{% endif %}">
+                            {% if l.price < l.previous_price %}▼{% else %}▲{% endif %} จาก {{ fmt_price(l.previous_price) }}
+                        </div>
+                    {% endif %}
+                </td>
+                <td><span class="src" style="--c: {{ source_color(l.source) }}">{{ source_label(l.source) }}</span>
+                    <div class="muted small">{{ {'bookmarklet': 'ปุ่มเก็บราคา', 'manual': 'กรอกเอง', 'shopee_api': 'Shopee API'}.get(l.captured_via, l.captured_via) }}</div></td>
+                <td>{{ l.seller or '-' }}{% if l.location %}<div class="muted small">{{ l.location }}</div>{% endif %}</td>
+                <td>{{ l.condition or '-' }}</td>
+                <td class="small">{{ l.last_seen.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>
+                    <form method="post" action="/listing/{{ l.id }}/delete" onsubmit="return confirm('ลบรายการนี้?')">
+                        <input type="hidden" name="csrf" value="{{ csrf() }}">
+                        <button class="icon-btn" title="ลบ">✕</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+        <p class="muted">ยังไม่มีราคาที่เก็บไว้ ใช้ลิงก์ค้นหาด้านบน แล้วกดปุ่ม <b>เก็บราคา</b> หรือกรอกเองด้านล่าง</p>
+    {% endif %}
+</section>
+
+<details class="panel" id="add" {% if not listings %}open{% endif %}>
+    <summary><h2>กรอกราคาเอง</h2></summary>
+    <form method="post" action="/product/{{ p.id }}/listing" class="form-grid">
+        <input type="hidden" name="csrf" value="{{ csrf() }}">
+        <label class="span-2">ชื่อ/รายละเอียดสินค้า<input name="title" required></label>
+        <label>ราคา (บาท)<input name="price" inputmode="decimal" required></label>
+        <label>แหล่ง
+            <select name="source">
+                <option value="">ดูจากลิงก์อัตโนมัติ</option>
+                {% for site in SITES %}<option value="{{ site.key }}">{{ site.label }}</option>{% endfor %}
+                <option value="other">อื่นๆ</option>
+            </select>
+        </label>
+        <label class="span-2">ลิงก์<input name="url" type="url" placeholder="https://..."></label>
+        <label>ผู้ขาย<input name="seller"></label>
+        <label>พื้นที่<input name="location"></label>
+        <label>สภาพ
+            <select name="condition"><option value="">ไม่ระบุ</option><option>มือหนึ่ง</option><option>มือสอง</option></select>
+        </label>
+        <label class="span-3">หมายเหตุ<input name="note"></label>
+        <div class="span-4"><button class="btn btn-primary">บันทึกราคา</button></div>
+    </form>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var table = document.getElementById('listings');
+  // filter by source
+  document.querySelectorAll('[data-filter]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-filter]').forEach(function (b) { b.classList.remove('is-on'); });
+      btn.classList.add('is-on');
+      var f = btn.dataset.filter;
+      table.querySelectorAll('tbody tr').forEach(function (tr) {
+        tr.hidden = !!f && tr.dataset.source !== f;
+      });
+    });
+  });
+  // sort by price / last seen
+  document.querySelectorAll('th.sortable').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var key = th.dataset.sort, asc = th.dataset.dir !== 'asc';
+      th.dataset.dir = asc ? 'asc' : 'desc';
+      var rows = Array.from(table.querySelectorAll('tbody tr'));
+      rows.sort(function (a, b) { return (parseFloat(a.dataset[key]) - parseFloat(b.dataset[key])) * (asc ? 1 : -1); });
+      rows.forEach(function (r) { table.tBodies[0].appendChild(r); });
+    });
+  });
+  // open every search link (the browser may ask you to allow pop-ups once)
+  var all = document.getElementById('open-all');
+  if (all) all.addEventListener('click', function () {
+    document.querySelectorAll('.search-links a.chip').forEach(function (a) { window.open(a.href, '_blank', 'noopener'); });
+  });
+})();
+</script>
+{% endblock %}

@@ -26,11 +26,15 @@
     </div>
 </div>
 
+{% if p.target_price is not none and not telegram_ready %}
+<div class="flash flash-info">ยังไม่ได้ตั้งค่า Telegram — ราคาที่ถึงเป้าจะ<b>ไม่ถูกแจ้งเตือน</b> · <a href="/manage#telegram">ตั้งค่า Telegram</a></div>
+{% endif %}
+
 <section class="panel">
     <div class="search-links">
         <span class="label">ค้นหา "{{ p.keyword }}" ใน:</span>
         {% for link in s.search_links %}
-            <a href="{{ link.url }}" target="_blank" rel="noopener" class="chip" style="--c: {{ link.site.color }}">{{ link.site.label }} ↗</a>
+            <a href="{{ link.url }}" target="_blank" rel="noopener" class="chip" style="--c: {{ link.site.color }}">{{ link.site.label }}{% if link.filtered %} <small>≤{{ fmt_price(p.target_price) }}</small>{% endif %} ↗</a>
         {% endfor %}
         {% if s.search_links|length > 1 %}<button type="button" class="btn btn-small" id="open-all">เปิดทุกเว็บ</button>{% endif %}
         {% if shopee_ready %}
@@ -40,18 +44,23 @@
         </form>
         {% endif %}
     </div>
-    <p class="muted small hint">เจอชิ้นที่ใช่ → กดปุ่ม <b>เก็บราคา</b> ที่แถบ Bookmark (ถ้าราคาไม่ขึ้นเอง ให้ลากคลุมตัวเลขราคาบนหน้าเว็บก่อนกด)</p>
+    <p class="muted small hint">
+        {% if p.target_price is not none %}ลิงก์ที่มี ≤ จะเปิดแบบกรองราคาไม่เกินเป้า (Kaidee ไม่รองรับการกรองผ่านลิงก์) · {% else %}ใส่ราคาเป้าหมายที่หน้าจัดการ เพื่อให้ลิงก์ค้นหากรองราคาให้อัตโนมัติ · {% endif %}
+        เจอชิ้นที่ใช่ → กดปุ่ม <b>Price Bot</b> บนแถบส่วนขยายของเบราว์เซอร์ (ถ้าราคาไม่ขึ้นเอง ให้ลากคลุมตัวเลขราคาก่อนกด)</p>
 </section>
 
 <section class="panel">
     <div class="panel-head">
         <h2>รายการที่เก็บไว้</h2>
-        {% if sources|length > 1 %}
         <div class="filter" role="group">
+            {% if p.target_price is not none and listings %}
+            <label class="check budget-toggle"><input type="checkbox" id="only-budget"> เฉพาะที่ไม่เกินเป้า ({{ s.within_target }})</label>
+            {% endif %}
+            {% if sources|length > 1 %}
             <button type="button" class="chip is-on" data-filter="">ทั้งหมด</button>
             {% for src in sources %}<button type="button" class="chip" data-filter="{{ src }}" style="--c: {{ source_color(src) }}">{{ source_label(src) }}</button>{% endfor %}
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 
     {% if listings %}
@@ -71,9 +80,11 @@
         </thead>
         <tbody>
         {% for l in listings %}
+            {% set in_budget = p.target_price is not none and l.price <= p.target_price %}
             <tr data-source="{{ l.source }}" data-price="{{ l.price }}" data-seen="{{ l.last_seen.timestamp() }}"
-                class="{% if s.lowest and l.id == s.lowest.id %}is-lowest{% endif %} {% if p.target_price is not none and l.price <= p.target_price %}is-hit{% endif %}">
-                <td class="thumb">{% if l.image_url %}<img src="{{ l.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</td>
+                data-budget="{{ '1' if in_budget else '0' }}"
+                class="{% if s.lowest and l.id == s.lowest.id %}is-lowest{% endif %} {% if in_budget %}is-hit{% elif p.target_price is not none %}is-over{% endif %}">
+                <td class="thumb">{% if l.image_url %}<img src="{{ l.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">{% endif %}</td>
                 <td class="title-cell">
                     {% if l.url %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title }}</a>{% else %}{{ l.title }}{% endif %}
                     {% if l.note %}<div class="muted small">{{ l.note }}</div>{% endif %}
@@ -81,6 +92,10 @@
                 </td>
                 <td class="num price-cell">
                     <b>{{ fmt_price(l.price) }}</b>
+                    {% if p.target_price is not none %}
+                        {% if in_budget %}<div class="budget ok">✓ ในงบ{% if l.price < p.target_price %} (ถูกกว่า {{ fmt_price(p.target_price - l.price) }}){% endif %}</div>
+                        {% else %}<div class="budget over">เกินเป้า +{{ fmt_price(l.price - p.target_price) }}</div>{% endif %}
+                    {% endif %}
                     {% if l.previous_price is not none and l.previous_price != l.price %}
                         <div class="delta {% if l.price < l.previous_price %}down{% else %}up{% endif %}">
                             {% if l.price < l.previous_price %}▼{% else %}▲{% endif %} จาก {{ fmt_price(l.previous_price) }}
@@ -137,17 +152,24 @@
 <script>
 (function () {
   var table = document.getElementById('listings');
+  var source = '', budget = document.getElementById('only-budget');
+  function applyFilters() {
+    if (!table) return;
+    var onlyBudget = budget && budget.checked;
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.hidden = (!!source && tr.dataset.source !== source) || (onlyBudget && tr.dataset.budget !== '1');
+    });
+  }
   // filter by source
   document.querySelectorAll('[data-filter]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('[data-filter]').forEach(function (b) { b.classList.remove('is-on'); });
       btn.classList.add('is-on');
-      var f = btn.dataset.filter;
-      table.querySelectorAll('tbody tr').forEach(function (tr) {
-        tr.hidden = !!f && tr.dataset.source !== f;
-      });
+      source = btn.dataset.filter;
+      applyFilters();
     });
   });
+  if (budget) budget.addEventListener('change', applyFilters);
   // sort by price / last seen
   document.querySelectorAll('th.sortable').forEach(function (th) {
     th.addEventListener('click', function () {

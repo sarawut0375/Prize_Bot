@@ -20,7 +20,7 @@ from sqlmodel import Session, select
 
 from pricebot import settings_store, shopee_api, shopee_sync, telegram
 from pricebot.bookmarklet import bookmarklet_href
-from pricebot.config import PACKAGE_DIR
+from pricebot.config import BASE_DIR, PACKAGE_DIR
 from pricebot.database import engine, init_db
 from pricebot.listings import notify, save_listing
 from pricebot.models import Listing, Product
@@ -33,6 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    settings_store.migrate()
     shopee_sync.start()
     yield
 
@@ -79,11 +80,16 @@ def _enabled_sites() -> list:
     return [s for s in SITES if settings_store.get_bool(f"site_enabled_{s.key}")]
 
 
-def _search_links(keyword: str) -> list[dict]:
-    return [
-        {"site": s, "url": build_search_url(settings_store.get(f"search_url_{s.key}"), keyword)}
-        for s in _enabled_sites()
-    ]
+def _search_links(keyword: str, max_price: float | None = None) -> list[dict]:
+    links = []
+    for s in _enabled_sites():
+        template = settings_store.get(f"search_url_{s.key}")
+        links.append({
+            "site": s,
+            "url": build_search_url(template, keyword, max_price),
+            "filtered": max_price is not None and "{max}" in template,
+        })
+    return links
 
 
 def _get_product(session: Session, product_id: int) -> Product:
@@ -107,7 +113,8 @@ def _summary(session: Session, product: Product) -> dict:
         "by_source": sorted(by_source.values(), key=lambda l: l.price),
         "hit_target": bool(lowest and product.target_price is not None and lowest.price <= product.target_price),
         "last_update": max((l.last_seen for l in listings), default=None),
-        "search_links": _search_links(product.keyword),
+        "search_links": _search_links(product.keyword, product.target_price),
+        "within_target": sum(1 for l in listings if product.target_price is not None and l.price <= product.target_price),
     }
 
 
@@ -117,6 +124,7 @@ def _ctx(request: Request, **extra) -> dict:
         "msg": request.query_params.get("msg"),
         "err": request.query_params.get("err"),
         "shopee_ready": shopee_sync.is_configured(),
+        "telegram_ready": bool(settings_store.get("telegram_bot_token") and settings_store.get("telegram_chat_id")),
         **extra,
     }
 
@@ -204,7 +212,8 @@ def shopee_now(product_id: int, csrf: str = Form(""), back: str = Form("")):
 
 @app.get("/capture")
 def capture_form(
-    request: Request, url: str = "", title: str = "", price: str = "", sel: str = "", image: str = ""
+    request: Request, url: str = "", title: str = "", price: str = "", sel: str = "", image: str = "",
+    guess: str = "",
 ):
     with Session(engine) as s:
         products = s.exec(select(Product).where(Product.is_active == True).order_by(Product.name)).all()  # noqa: E712
@@ -241,6 +250,7 @@ def capture_form(
         _ctx(
             request, products=products, url=url, title=title.strip(), price=guess, image=image,
             source=detect_source(url), selected_id=best_id, existing=existing, sel=sel,
+            guessed=bool(guess) and not sel,
         ),
     )
 
@@ -293,6 +303,7 @@ def manage(request: Request):
         _ctx(
             request, products=products, cfg=cfg, mask=settings_store.mask,
             bookmarklet=bookmarklet_href(cfg["base_url"]),
+            extension_path=str(BASE_DIR / "browser_extension"),
         ),
     )
 

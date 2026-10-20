@@ -10,13 +10,17 @@
     <a href="/manage#products" class="btn btn-primary">+ เพิ่มสินค้าที่ต้องการหา</a>
 </div>
 
+{% if summaries and not telegram_ready %}
+<div class="flash flash-info">ยังไม่ได้ตั้งค่า Telegram — เมื่อราคาถึงเป้าหมาย ระบบจะแสดงในหน้านี้ แต่ยัง<b>ไม่ส่งแจ้งเตือน</b> · <a href="/manage#telegram">ตั้งค่า Telegram</a></div>
+{% endif %}
+
 {% if not summaries %}
 <section class="empty-state">
     <h2>ยังไม่มีสินค้าที่ต้องการหา</h2>
     <ol class="steps">
         <li>ไปที่หน้า <a href="/manage#products">จัดการ</a> แล้วเพิ่มสินค้า เช่น "การ์ดจอ RTX 4060"</li>
-        <li>ลากปุ่ม <b>เก็บราคา</b> ในหน้าจัดการไปไว้ที่แถบ Bookmark ของเบราว์เซอร์</li>
-        <li>กลับมาหน้านี้ กดลิงก์ค้นหาของแต่ละเว็บ เจอชิ้นที่ใช่ก็กด <b>เก็บราคา</b></li>
+        <li>ติดตั้งส่วนขยาย <b>Price Bot – เก็บราคา</b> ตามขั้นตอนใน <a href="/manage#bookmarklet">หน้าจัดการ</a> (ทำครั้งเดียว)</li>
+        <li>กลับมาหน้านี้ กดลิงก์ค้นหาของแต่ละเว็บ เจอชิ้นที่ใช่ก็กดไอคอน <b>฿</b> บนแถบเครื่องมือ</li>
     </ol>
 </section>
 {% endif %}
@@ -52,7 +56,7 @@
         {% if s.by_source|length > 1 %}
         <ul class="per-source">
             {% for l in s.by_source %}
-            <li><span class="src" style="--c: {{ source_color(l.source) }}">{{ source_label(l.source) }}</span><b>{{ fmt_price(l.price) }} ฿</b></li>
+            <li class="{% if p.target_price is not none and l.price <= p.target_price %}in-budget{% endif %}"><span class="src" style="--c: {{ source_color(l.source) }}">{{ source_label(l.source) }}</span><b>{{ fmt_price(l.price) }} ฿</b></li>
             {% endfor %}
         </ul>
         {% endif %}
@@ -60,12 +64,13 @@
         <div class="search-links">
             <span class="label">ค้นหาใน:</span>
             {% for link in s.search_links %}
-                <a href="{{ link.url }}" target="_blank" rel="noopener" class="chip" style="--c: {{ link.site.color }}">{{ link.site.label }} ↗</a>
+                <a href="{{ link.url }}" target="_blank" rel="noopener" class="chip" style="--c: {{ link.site.color }}"
+                   {% if link.filtered %}title="เปิดแบบกรองราคาไม่เกิน {{ fmt_price(p.target_price) }} บาท"{% endif %}>{{ link.site.label }}{% if link.filtered %} <small>≤{{ fmt_price(p.target_price) }}</small>{% endif %} ↗</a>
             {% endfor %}
         </div>
 
         <footer class="card-foot">
-            <span class="muted small">{{ s.count }} รายการ{% if s.last_update %} · อัปเดต {{ s.last_update.strftime('%d/%m %H:%M') }}{% endif %}</span>
+            <span class="muted small">{{ s.count }} รายการ{% if p.target_price is not none and s.count %} · <span class="in-budget-text">{{ s.within_target }} ในงบ</span>{% endif %}{% if s.last_update %} · อัปเดต {{ s.last_update.strftime('%d/%m %H:%M') }}{% endif %}</span>
             <div class="actions">
                 {% if shopee_ready %}
                 <form method="post" action="/product/{{ p.id }}/shopee">

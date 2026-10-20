@@ -25,11 +25,12 @@
 <!-- ===================================================== products -->
 <section class="panel" id="products">
     <h2>สินค้าที่ต้องการหา</h2>
+    <p class="muted small">ราคาเป้าหมายใช้ 3 อย่าง: ① ลิงก์ค้นหาจะกรองให้แสดงเฉพาะที่ไม่เกินราคานี้ (Facebook, Shopee, Lazada) ② หน้าผลลัพธ์จะบอกว่ารายการไหน "ในงบ" หรือ "เกินเป้า" ③ แจ้ง Telegram ทันทีเมื่อเก็บราคาที่ถึงเป้า</p>
     <form method="post" action="/manage/products/add" class="form-grid add-product">
         <input type="hidden" name="csrf" value="{{ csrf() }}">
         <label class="span-2">ชื่อสินค้า<input name="name" required placeholder="เช่น การ์ดจอ RTX 4060"></label>
         <label class="span-2">คำค้นหา <small class="muted">(ว่างไว้ = ใช้ชื่อสินค้า)</small><input name="keyword" placeholder="เช่น rtx 4060 8gb"></label>
-        <label>ราคาเป้าหมาย (บาท)<input name="target_price" inputmode="decimal" placeholder="ไม่บังคับ"></label>
+        <label title="ใช้กรองลิงก์ค้นหาให้แสดงเฉพาะที่ไม่เกินราคานี้ และแจ้ง Telegram เมื่อเจอราคาที่ถึงเป้า">ราคาเป้าหมาย (บาท)<input name="target_price" inputmode="decimal" placeholder="ไม่บังคับ"></label>
         <label class="span-2">หมายเหตุ<input name="note" placeholder="เช่น เอามือสองสภาพดี ไม่เกินปีนี้"></label>
         <div class="align-end"><button class="btn btn-primary">+ เพิ่มสินค้า</button></div>
     </form>
@@ -59,34 +60,47 @@
 
 <!-- ===================================================== bookmarklet -->
 <section class="panel" id="bookmarklet">
-    <h2>ปุ่มเก็บราคา <span class="badge">ใช้กับทุกเว็บ</span></h2>
-    <p>ปุ่มนี้อยู่บนแถบ Bookmark ของเบราว์เซอร์คุณ เวลาเปิดดูสินค้าที่ไหนก็ได้ (Facebook, Shopee, Lazada, Kaidee หรือเว็บร้านอื่น) กดทีเดียว ระบบจะดึงชื่อ ลิงก์ รูป และราคา จากหน้าที่คุณเปิดอยู่มาให้ยืนยันแล้วบันทึก</p>
+    <h2>ปุ่มเก็บราคา (ส่วนขยายเบราว์เซอร์) <span class="badge badge-ok">แนะนำ</span></h2>
+    <p>ปุ่มนี้อยู่บนแถบเครื่องมือของ Edge / Chrome เวลาดูสินค้าที่ไหนก็ได้ (Facebook, Shopee, Lazada, Kaidee หรือเว็บร้านอื่น) กดทีเดียว ระบบจะดึงชื่อ ลิงก์ รูป และราคา จากหน้าที่คุณเปิดอยู่มาให้ยืนยันแล้วบันทึก
+       ส่วนขยายทำงานเฉพาะตอนคุณกดเท่านั้น และไม่เข้าเว็บไหนเอง</p>
 
-    <div class="bookmarklet-box">
-        <a class="bookmarklet" href="{{ bookmarklet }}" onclick="alert('ลากปุ่มนี้ไปวางที่แถบ Bookmark ด้านบนของเบราว์เซอร์ (ไม่ต้องคลิก)'); return false;">📌 เก็บราคา</a>
-        <span class="muted">← <b>ลาก</b>ปุ่มนี้ไปวางที่แถบ Bookmark</span>
-    </div>
-
+    <h3 class="sub">ติดตั้งครั้งเดียว</h3>
     <ol class="steps">
-        <li>ถ้าไม่เห็นแถบ Bookmark กด <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> เพื่อเปิด</li>
-        <li>ลากปุ่ม <b>📌 เก็บราคา</b> ไปวางบนแถบนั้น</li>
-        <li>เปิดหน้าสินค้าที่สนใจ → กดปุ่ม → หน้าต่างเล็กของ Price Bot จะเด้งขึ้นมา → ตรวจสอบราคา → บันทึก</li>
-        <li><b>ถ้าราคาไม่ขึ้นเอง</b> (เช่น Facebook): ใช้เมาส์<b>ลากคลุมตัวเลขราคา</b>บนหน้าเว็บก่อน แล้วค่อยกดปุ่ม</li>
-        <li>ถ้าเบราว์เซอร์บล็อกหน้าต่างเด้ง ให้กด "อนุญาตป๊อปอัป" สำหรับเว็บนั้นครั้งเดียว</li>
+        <li>เปิดหน้า <code>edge://extensions</code> (ถ้าใช้ Chrome: <code>chrome://extensions</code>) — พิมพ์ลงช่องที่อยู่เว็บแล้วกด Enter</li>
+        <li>เปิดสวิตช์ <b>โหมดนักพัฒนา (Developer mode)</b> — Edge อยู่แถบซ้ายด้านล่าง, Chrome อยู่มุมขวาบน</li>
+        <li>กด <b>โหลดที่คลายการบีบอัด (Load unpacked)</b> แล้วเลือกโฟลเดอร์นี้:
+            <div class="path-box"><code id="ext-path">{{ extension_path }}</code> <button type="button" class="btn btn-small" onclick="navigator.clipboard.writeText(document.getElementById('ext-path').textContent)">คัดลอก</button></div></li>
+        <li>กดไอคอนจิ๊กซอว์ 🧩 บนแถบเครื่องมือ แล้ว<b>ปักหมุด</b> "Price Bot – เก็บราคา" ไว้ (จะเห็นไอคอน <span class="brand-mark mini">฿</span>)</li>
     </ol>
 
-    <form method="post" action="/manage/general" class="inline-form">
-        <input type="hidden" name="csrf" value="{{ csrf() }}">
-        <label>ที่อยู่ของ Price Bot <small class="muted">(เปลี่ยนเฉพาะถ้ารันพอร์ตอื่น)</small>
-            <input name="base_url" value="{{ cfg.base_url }}"></label>
-        <button class="btn btn-small">บันทึก</button>
-    </form>
+    <h3 class="sub">วิธีใช้</h3>
+    <ul class="plain">
+        <li>• เปิดหน้าสินค้า → กดไอคอน <span class="brand-mark mini">฿</span> หรือกด <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></li>
+        <li>• <b>ถ้าราคาไม่ขึ้นเอง</b> (เช่น Facebook): ลากคลุมตัวเลขราคาบนหน้าเว็บ → <b>คลิกขวา</b> → "เก็บราคา ... เข้า Price Bot"</li>
+        <li>• ต้องเปิด <code>python run.py</code> ค้างไว้ระหว่างใช้งาน</li>
+    </ul>
+    <p class="muted small">Edge อาจแจ้งเตือนเรื่อง "ส่วนขยายในโหมดนักพัฒนา" ตอนเปิดเบราว์เซอร์ — เป็นปกติสำหรับส่วนขยายที่ติดตั้งเอง กดปิดการแจ้งเตือนได้ (อย่ากดปิดส่วนขยาย)</p>
+
+    <details class="howto">
+        <summary>ทางเลือกสำรอง: ปุ่มบนแถบ Bookmark (ใช้ไม่ได้กับ Facebook)</summary>
+        <p class="small">Edge / Chrome รุ่นใหม่ไม่ยอมให้เว็บสาธารณะ (เช่น Facebook) เปิดหน้าบนเครื่องคุณเอง ปุ่ม Bookmark จึงขึ้น <code>about:blank#blocked</code> บนเว็บเหล่านั้น แต่อาจใช้ได้กับบางเว็บ</p>
+        <div class="bookmarklet-box">
+            <a class="bookmarklet" href="{{ bookmarklet }}" onclick="alert('ลากปุ่มนี้ไปวางที่แถบ Bookmark ด้านบนของเบราว์เซอร์ (ไม่ต้องคลิก)'); return false;">📌 เก็บราคา</a>
+            <span class="muted">← <b>ลาก</b>ไปวางที่แถบ Bookmark (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> ถ้ามองไม่เห็นแถบ)</span>
+        </div>
+        <form method="post" action="/manage/general" class="inline-form">
+            <input type="hidden" name="csrf" value="{{ csrf() }}">
+            <label>ที่อยู่ของ Price Bot <small class="muted">(เปลี่ยนเฉพาะถ้ารันพอร์ตอื่น)</small>
+                <input name="base_url" value="{{ cfg.base_url }}"></label>
+            <button class="btn btn-small">บันทึก</button>
+        </form>
+    </details>
 </section>
 
 <!-- ===================================================== sites -->
 <section class="panel" id="sites">
     <h2>ลิงก์ค้นหาแต่ละเว็บ</h2>
-    <p class="muted">ใช้สร้างปุ่ม "ค้นหาใน ..." ในหน้าผลลัพธ์ ระบบจะใส่คำค้นหาแทน <code>{q}</code> แล้วเปิดในเบราว์เซอร์ของคุณ (ระบบไม่ได้เข้าเว็บเหล่านี้เอง)</p>
+    <p class="muted">ใช้สร้างปุ่ม "ค้นหาใน ..." ในหน้าผลลัพธ์ ระบบจะใส่คำค้นหาแทน <code>{q}</code> และราคาเป้าหมายแทน <code>{max}</code> (ถ้าสินค้านั้นไม่มีราคาเป้า ส่วนที่มี <code>{max}</code> จะถูกตัดออกให้เอง) แล้วเปิดในเบราว์เซอร์ของคุณ — ระบบไม่ได้เข้าเว็บเหล่านี้เอง</p>
     <form method="post" action="/manage/sites" class="sites-form">
         <input type="hidden" name="csrf" value="{{ csrf() }}">
         {% for site in SITES %}

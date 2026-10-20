@@ -72,6 +72,20 @@ def set_many(values: dict[str, str]) -> None:
         s.commit()
 
 
+def migrate() -> None:
+    """Upgrade search links that still hold an older default."""
+    from pricebot.sources import OLD_DEFAULTS, SITES_BY_KEY
+
+    updates = {}
+    with Session(engine) as s:
+        for key, olds in OLD_DEFAULTS.items():
+            row = s.get(Setting, f"search_url_{key}")
+            if row is not None and row.value in olds:
+                updates[row.key] = SITES_BY_KEY[key].default_search_url
+    if updates:
+        set_many(updates)
+
+
 def mask(value: str) -> str:
     if not value:
         return ""

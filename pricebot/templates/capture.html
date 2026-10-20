@@ -22,14 +22,14 @@
     <input type="hidden" name="source" value="{{ source }}">
 
     <div class="capture-preview">
-        {% if image %}<img src="{{ image }}" alt="" referrerpolicy="no-referrer">{% endif %}
+        {% if image %}<img src="{{ image }}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">{% endif %}
         <div class="ellipsis-2 small muted">{{ url }}</div>
     </div>
 
     <label>เก็บไว้ในสินค้า
         <select name="product_id" required>
             {% for p in products %}
-            <option value="{{ p.id }}" {% if p.id == selected_id %}selected{% endif %}>{{ p.name }}{% if p.target_price is not none %} (เป้า {{ fmt_price(p.target_price) }}){% endif %}</option>
+            <option value="{{ p.id }}" data-target="{{ p.target_price if p.target_price is not none else '' }}" {% if p.id == selected_id %}selected{% endif %}>{{ p.name }}{% if p.target_price is not none %} (เป้า {{ fmt_price(p.target_price) }}){% endif %}</option>
             {% endfor %}
         </select>
     </label>
@@ -37,7 +37,9 @@
     <label>ราคา (บาท)
         <input name="price" value="{{ fmt_price(price) if price is not none else '' }}" inputmode="decimal" required autofocus class="price-input">
         {% if price is none %}<small class="warn">ไม่เจอราคาในหน้านี้ — พิมพ์เอง หรือปิดหน้าต่างนี้ ลากคลุมตัวเลขราคาบนหน้าเว็บ แล้วกดปุ่มอีกครั้ง</small>
-        {% elif sel %}<small class="muted">ใช้ตัวเลขจากข้อความที่คุณลากคลุมไว้</small>{% endif %}
+        {% elif sel %}<small class="muted">ใช้ตัวเลขจากข้อความที่คุณลากคลุมไว้</small>
+        {% elif guessed %}<small class="warn">⚠ ราคานี้เดาจากตัวเลขแรกที่เจอบนหน้าเว็บ — ตรวจให้ตรงก่อนบันทึก (ถ้าผิด: ลากคลุมราคาที่ถูก → คลิกขวา → เก็บราคา)</small>{% endif %}
+        <small id="vs-target" class="budget"></small>
     </label>
 
     <label>ชื่อสินค้า<textarea name="title" rows="2" required>{{ title }}</textarea></label>
@@ -59,4 +61,23 @@
     </div>
 </form>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var sel = document.querySelector('select[name="product_id"]');
+  var price = document.querySelector('input[name="price"]');
+  var out = document.getElementById('vs-target');
+  if (!sel || !price || !out) return;
+  function num(t) { var m = String(t).replace(/,/g, '').match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function update() {
+    var target = parseFloat(sel.options[sel.selectedIndex].dataset.target), p = num(price.value);
+    if (isNaN(target) || isNaN(p)) { out.textContent = ''; out.className = 'budget'; return; }
+    if (p <= target) { out.textContent = '✓ ไม่เกินราคาเป้าหมาย' + (p < target ? ' (ถูกกว่า ' + fmt(target - p) + ' บาท)' : ''); out.className = 'budget ok'; }
+    else { out.textContent = 'เกินราคาเป้าหมาย ' + fmt(p - target) + ' บาท'; out.className = 'budget over'; }
+  }
+  sel.addEventListener('change', update); price.addEventListener('input', update); update();
+})();
+</script>
 {% endblock %}

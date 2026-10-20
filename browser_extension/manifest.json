@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Price Bot – เก็บราคา",
+  "version": "1.0.0",
+  "description": "กดทีเดียวเพื่อส่งชื่อ ราคา ลิงก์ และรูปของสินค้าที่คุณกำลังดู เข้า Price Bot ที่รันอยู่บนเครื่องนี้",
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": {
+    "default_title": "เก็บราคาเข้า Price Bot (Alt+Shift+P)",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
+  },
+  "permissions": ["activeTab", "scripting", "contextMenus", "storage"],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+P" },
+      "description": "เก็บราคาของหน้านี้"
+    }
+  }
+}

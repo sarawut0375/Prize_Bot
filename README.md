@@ -29,8 +29,7 @@ cd "C:\Users\Boy\OneDrive\Project Prize_Bot"
 python -m venv venv            # ครั้งแรกครั้งเดียว (ถ้ามีโฟลเดอร์ venv แล้วข้ามได้)
 venv\Scripts\activate
 pip install -r requirements.txt
-python browser_extension/  ส่วนขยาย Edge/Chrome สำหรับเก็บราคา
-run.py
+python run.py
 ```
 
 เปิด **http://localhost:8000** แล้วเริ่มที่หน้า **จัดการ**:
